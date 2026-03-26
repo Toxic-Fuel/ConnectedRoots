@@ -1,5 +1,6 @@
-using System.Collections.Generic;
 using GridGeneration;
+using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class WinCondition : MonoBehaviour
@@ -41,14 +42,7 @@ public class WinCondition : MonoBehaviour
 
         Dictionary<Vector2Int, List<Vector2Int>> paths = FindShortestPaths(cityPos, villages);
 
-        if (paths.Count == villages.Count)
-        {
-            Debug.Log("path found");
-        }
-        else
-        {
-            Debug.LogWarning("WinCondition: No walkable path found.");
-        }
+        Check(paths, villages);
 
         foreach (KeyValuePair<Vector2Int, List<Vector2Int>> path in paths)
         {
@@ -183,5 +177,17 @@ public class WinCondition : MonoBehaviour
 
         path.Reverse();
         return path;
+    }
+
+    private void Check(Dictionary<Vector2Int, List<Vector2Int>> paths, List<Vector2Int> villages)
+    {
+        if (paths.Count == villages.Count)
+        {
+            Debug.Log("path found");
+        }
+        else
+        {
+            Debug.LogWarning("WinCondition: No walkable path found.");
+        }
     }
 }
