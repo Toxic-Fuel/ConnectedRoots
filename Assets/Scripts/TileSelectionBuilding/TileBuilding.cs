@@ -431,6 +431,17 @@ public class TileBuilding : MonoBehaviour
 
     private bool IsRoadConnectionNode(Vector2Int coordinate)
     {
+        if (allowBuildOnAnyTileForTesting)
+        {
+            if (builtRoads.Contains(coordinate))
+            {
+                return true;
+            }
+
+            GridTile tile = gridMap.GetTileAt(coordinate.x, coordinate.y);
+            return tile != null && (tile.tileType == TileType.City || tile.tileType == TileType.Village);
+        }
+
         HashSet<Vector2Int> connectedNodes = GetConnectedRoadNetworkNodes();
         return connectedNodes.Contains(coordinate);
     }
