@@ -17,9 +17,6 @@ public class TileBuilding : MonoBehaviour
     private GameObject hoveredTile;
     private Vector3 hoveredBasePosition;
 
-    private GameObject returningTile;
-    private Vector3 returningBasePosition;
-
     private void Awake()
     {
         if (mainCamera == null)
@@ -252,8 +249,7 @@ public class TileBuilding : MonoBehaviour
 
         if (hoveredTile != null)
         {
-            returningTile = hoveredTile;
-            returningBasePosition = hoveredBasePosition;
+            hoveredTile.transform.localPosition = hoveredBasePosition;
         }
 
         hoveredTile = tileObject;
@@ -270,8 +266,7 @@ public class TileBuilding : MonoBehaviour
     {
         if (hoveredTile != null)
         {
-            returningTile = hoveredTile;
-            returningBasePosition = hoveredBasePosition;
+            hoveredTile.transform.localPosition = hoveredBasePosition;
             hoveredTile = null;
         }
     }
@@ -284,16 +279,6 @@ public class TileBuilding : MonoBehaviour
         {
             Vector3 upTarget = hoveredBasePosition + Vector3.up * hoverLiftHeight;
             hoveredTile.transform.localPosition = Vector3.Lerp(hoveredTile.transform.localPosition, upTarget, t);
-        }
-
-        if (returningTile != null)
-        {
-            returningTile.transform.localPosition = Vector3.Lerp(returningTile.transform.localPosition, returningBasePosition, t);
-            if ((returningTile.transform.localPosition - returningBasePosition).sqrMagnitude < 0.0001f)
-            {
-                returningTile.transform.localPosition = returningBasePosition;
-                returningTile = null;
-            }
         }
     }
 }
