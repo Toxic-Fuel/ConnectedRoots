@@ -14,6 +14,7 @@ namespace GridGeneration
         [SerializeField] private GridTile[] tiles;
         [SerializeField] private int seed;
         [SerializeField, Range(0f, 1f)] private float obstaclePercent = 0.30f;
+        [SerializeField, Min(0.001f)] private float obstacleNoiseScale = 0.2f;
         [SerializeField, Min(0)] private int minDistance = 1;
         private GridTile[,] tileMap;
         private GameObject[,] gameObjectMap;
@@ -359,9 +360,29 @@ namespace GridGeneration
             for (int i = 0; i < obstacleCount; i++)
             {
                 Vector2Int coordinate = availableCoordinates[i];
-                GridTile obstacleTile = obstacleTiles[rng.Next(0, obstacleTiles.Count)];
+                GridTile obstacleTile = SelectObstacleTileForCoordinate(coordinate.x, coordinate.y, obstacleTiles);
                 ReplaceTileAt(coordinate.x, coordinate.y, obstacleTile);
             }
+        }
+
+        private GridTile SelectObstacleTileForCoordinate(int x, int y, List<GridTile> obstacleTiles)
+        {
+            if (obstacleTiles == null || obstacleTiles.Count == 0)
+            {
+                return null;
+            }
+
+            if (obstacleTiles.Count == 1)
+            {
+                return obstacleTiles[0];
+            }
+
+            float sampleScale = Mathf.Max(0.001f, obstacleNoiseScale);
+            float sampleX = (x + seed * 0.137f) * sampleScale;
+            float sampleY = (y - seed * 0.173f) * sampleScale;
+            float noiseValue = Mathf.PerlinNoise(sampleX, sampleY);
+            int obstacleIndex = Mathf.Clamp(Mathf.FloorToInt(noiseValue * obstacleTiles.Count), 0, obstacleTiles.Count - 1);
+            return obstacleTiles[obstacleIndex];
         }
 
         private List<GridTile> FindTilesByType(TileType tileType)
@@ -536,6 +557,7 @@ namespace GridGeneration
                 hash = hash * 31 + tileSize.GetHashCode();
                 hash = hash * 31 + seed;
                 hash = hash * 31 + obstaclePercent.GetHashCode();
+                hash = hash * 31 + obstacleNoiseScale.GetHashCode();
                 hash = hash * 31 + minDistance;
                 hash = hash * 31 + baseTileId;
                 hash = hash * 31 + basePrefabId;
