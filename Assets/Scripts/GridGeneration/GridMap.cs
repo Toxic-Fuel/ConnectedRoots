@@ -488,6 +488,30 @@ namespace GridGeneration
             return true;
         }
 
+        public bool TryReplaceTileVisualAt(int x, int y, GameObject tilePrefab, Quaternion localRotation)
+        {
+            if (!IsInsideGrid(x, y) || tilePrefab == null || gameObjectMap == null)
+            {
+                return false;
+            }
+
+            GameObject oldTileInstance = gameObjectMap[x, y];
+            if (oldTileInstance != null)
+            {
+                if (Application.isPlaying) Destroy(oldTileInstance);
+                else DestroyImmediate(oldTileInstance);
+            }
+
+            float step = tileSize + spacing;
+            Vector3 localPos = new Vector3(x * step, 0f, y * step);
+            GameObject tileInstance = Instantiate(tilePrefab, transform);
+            tileInstance.transform.localPosition = localPos;
+            tileInstance.name = $"Tile_{x}_{y}";
+            gameObjectMap[x, y] = tileInstance;
+
+            return true;
+        }
+
         private List<GridTile> FindTilesByType(TileType tileType)
         {
             var matchingTiles = new List<GridTile>();
