@@ -485,7 +485,7 @@ public class TileBuilding : MonoBehaviour
         }
 
         GridTile tile = gridMap.GetTileAt(coordinate.x, coordinate.y);
-        return tile != null && tile.tileType == TileType.City;
+        return tile != null && (tile.tileType == TileType.City || tile.tileType == TileType.Village);
     }
 
     private bool IsPlayerTileCoordinate(Vector2Int coordinate)
