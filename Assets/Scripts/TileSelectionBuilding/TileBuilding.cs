@@ -130,6 +130,8 @@ public class TileBuilding : MonoBehaviour
             return;
         }
 
+        Debug.Log($"Built road at ({tileCoordinate.x}, {tileCoordinate.y}) | Cost: W{woodCost} S{stoneCost}");
+
         ClearHoveredTile();
     }
 
@@ -222,6 +224,12 @@ public class TileBuilding : MonoBehaviour
 
         hoveredTile = tileObject;
         hoveredBasePosition = hoveredTile.transform.localPosition;
+
+        if (TryParseTileCoordinate(hoveredTile.name, out Vector2Int coordinate)
+            && CanBuildOnTile(coordinate, out int woodCost, out int stoneCost))
+        {
+            Debug.Log($"Hover tile ({coordinate.x}, {coordinate.y}) | Build cost: W{woodCost} S{stoneCost}");
+        }
     }
 
     private void ClearHoveredTile()
