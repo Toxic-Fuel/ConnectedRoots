@@ -3,15 +3,28 @@ using UnityEngine.InputSystem;
 
 public class CameraScroll : MonoBehaviour
 {
-    [SerializeField] private float scrollSpeed = 1f;
-    [SerializeField] private float minDistance = 0.2f;
-    [SerializeField] private float maxDistance = 3f;
+    [SerializeField] private float scrollSpeed = 0.02f;
+    [SerializeField] private float minDistance = 2f;
+    [SerializeField] private float maxDistance = 30f;
+    [SerializeField] private float zoomSmoothTime = 0.12f;
 
     private Mouse mouse;
+    private Vector3 zoomDirectionLocal;
+    private float currentDistance;
+    private float targetDistance;
+    private float zoomVelocity;
 
     private void OnEnable()
     {
         mouse = Mouse.current;
+
+        zoomDirectionLocal = transform.localPosition.sqrMagnitude > 0f
+            ? transform.localPosition.normalized
+            : Vector3.back;
+
+        currentDistance = Mathf.Clamp(transform.localPosition.magnitude, minDistance, maxDistance);
+        targetDistance = currentDistance;
+        transform.localPosition = zoomDirectionLocal * currentDistance;
     }
 
     private void Update()
@@ -20,22 +33,13 @@ public class CameraScroll : MonoBehaviour
             return;
 
         float scrollDelta = mouse.scroll.ReadValue().y;
-        if (scrollDelta != 0)
+        if (!Mathf.Approximately(scrollDelta, 0f))
         {
-            Vector3 flatForward = transform.forward;
-            flatForward.y = 0;
-            flatForward.Normalize();
-
-            Vector3 scrollDirection = flatForward * scrollDelta * scrollSpeed;
-            Vector3 newPosition = transform.position + scrollDirection;
-
-            Vector3 referencePoint = transform.parent != null ? transform.parent.position : Vector3.zero;
-            float distance = Vector3.Distance(newPosition, referencePoint);
-            
-            if (distance >= minDistance && distance <= maxDistance)
-            {
-                transform.position = newPosition;
-            }
+            targetDistance -= scrollDelta * scrollSpeed;
+            targetDistance = Mathf.Clamp(targetDistance, minDistance, maxDistance);
         }
+
+        currentDistance = Mathf.SmoothDamp(currentDistance, targetDistance, ref zoomVelocity, zoomSmoothTime);
+        transform.localPosition = zoomDirectionLocal * currentDistance;
     }
 }
