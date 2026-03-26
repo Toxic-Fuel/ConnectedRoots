@@ -5,11 +5,14 @@ public class CameraRightClick : MonoBehaviour
 {
     [SerializeField] private float rotationSpeed = 0.2f;
     [SerializeField] private float rotationSmoothing = 0.05f;
+    [SerializeField] private float minVerticalRotation = 0f;
+    [SerializeField] private float maxVerticalRotation = 89.9f;
 
     private bool isDragging = false;
     private Mouse mouse;
     private Vector2 smoothedDelta;
     private Vector2 deltaVelocity;
+    private float currentVerticalRotation = 0f;
 
     private void OnEnable()
     {
@@ -43,18 +46,12 @@ public class CameraRightClick : MonoBehaviour
 
     private void RotateObject(Vector2 mouseDelta)
     {
-        float absDeltaX = Mathf.Abs(mouseDelta.x);
-        float absDeltaY = Mathf.Abs(mouseDelta.y);
+        float rotationY = mouseDelta.x * rotationSpeed;
+        float rotationX = -mouseDelta.y * rotationSpeed;
 
-        if (absDeltaX > absDeltaY)
-        {
-            float rotationY = mouseDelta.x * rotationSpeed;
-            transform.Rotate(0, rotationY, 0, Space.World);
-        }
-        else
-        {
-            float rotationX = -mouseDelta.y * rotationSpeed;
-            transform.Rotate(rotationX, 0, 0, Space.Self);
-        }
+        transform.Rotate(0, rotationY, 0, Space.World);
+
+        currentVerticalRotation = Mathf.Clamp(currentVerticalRotation + rotationX, minVerticalRotation, maxVerticalRotation);
+        transform.localRotation = Quaternion.Euler(currentVerticalRotation, transform.localRotation.eulerAngles.y, 0);
     }
 }

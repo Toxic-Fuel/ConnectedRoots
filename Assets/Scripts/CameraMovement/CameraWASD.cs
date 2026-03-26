@@ -30,19 +30,25 @@ public class CameraWASD : MonoBehaviour
 
         movementDirection = Vector3.zero;
 
+        Vector3 flatForward = transform.forward;
+        flatForward.y = 0;
+        flatForward.Normalize();
+
+        Vector3 flatRight = transform.right;
+        flatRight.y = 0;
+        flatRight.Normalize();
+
         if (keyboard.wKey.isPressed)
-            movementDirection += transform.forward;
+            movementDirection += flatForward;
 
         if (keyboard.sKey.isPressed)
-            movementDirection -= transform.forward;
+            movementDirection -= flatForward;
 
         if (keyboard.dKey.isPressed)
-            movementDirection += transform.right;
+            movementDirection += flatRight;
 
         if (keyboard.aKey.isPressed)
-            movementDirection -= transform.right;
-
-        movementDirection.y = 0;
+            movementDirection -= flatRight;
 
         if (movementDirection.magnitude > 0)
             movementDirection.Normalize();
