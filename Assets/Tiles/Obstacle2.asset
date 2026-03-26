@@ -14,4 +14,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GridTile
   tileName: Obstacle2
   tileType: 1
-  tilePrefab: {fileID: 9041468413012352844, guid: ae6c41dd664ffb946ae588bf93318cde, type: 3}
+  tilePrefab: {fileID: 9041468413012352844, guid: b33aabc1795a91e45aa6f2fc55ca6ff0, type: 3}
