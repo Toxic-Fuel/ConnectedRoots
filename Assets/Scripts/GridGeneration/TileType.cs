@@ -9,6 +9,8 @@ namespace GridGeneration
         Production,
         Road,
         Mountain,
-        River
+        River,
+        Valley,
+        Forest
     }
 }
