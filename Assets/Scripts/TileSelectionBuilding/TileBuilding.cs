@@ -18,6 +18,7 @@ public class TileBuilding : MonoBehaviour
     [SerializeField] private Turns turns;
     [SerializeField] private UnityEngine.Camera mainCamera;
     [SerializeField] private InputActionReference buildAction;
+    [SerializeField] private SelectTile selectTile;
 
     [Header("Road Prefabs")]
     [SerializeField] private GameObject roadVerticalPrefab;
@@ -35,6 +36,9 @@ public class TileBuilding : MonoBehaviour
     [Header("Hover Animation")]
     [SerializeField] private float hoverLiftHeight = 0.2f;
     [SerializeField] private float hoverAnimationSpeed = 8f;
+
+    public float HoverLiftHeight => hoverLiftHeight;
+    public float HoverAnimationSpeed => hoverAnimationSpeed;
 
     [Header("Debug")]
     [SerializeField] private bool enableDebugLogs = true;
@@ -59,6 +63,15 @@ public class TileBuilding : MonoBehaviour
         if (mainCamera == null)
         {
             mainCamera = UnityEngine.Camera.main;
+        }
+
+        if (selectTile == null)
+        {
+            selectTile = GetComponent<SelectTile>();
+            if (selectTile == null)
+            {
+                selectTile = FindAnyObjectByType<SelectTile>();
+            }
         }
     }
 
@@ -92,6 +105,15 @@ public class TileBuilding : MonoBehaviour
 
     private void UpdateHoveredTile()
     {
+        if (selectTile == null)
+        {
+            selectTile = GetComponent<SelectTile>();
+            if (selectTile == null)
+            {
+                selectTile = FindAnyObjectByType<SelectTile>();
+            }
+        }
+
         if (Mouse.current == null)
         {
             ClearHoveredTile();
@@ -99,6 +121,18 @@ public class TileBuilding : MonoBehaviour
         }
 
         if (!TryGetMouseGridCoordinate(out Vector2Int hoveredCoordinate))
+        {
+            ClearHoveredTile();
+            return;
+        }
+
+        if (selectTile != null && selectTile.IsSelectedCoordinate(hoveredCoordinate))
+        {
+            ClearHoveredTile();
+            return;
+        }
+
+        if (selectTile != null && selectTile.IsRecentlyDeselectedCoordinate(hoveredCoordinate))
         {
             ClearHoveredTile();
             return;
@@ -118,6 +152,12 @@ public class TileBuilding : MonoBehaviour
 
         GameObject tileObject = gridMap.GetTileInstanceAt(hoveredCoordinate.x, hoveredCoordinate.y);
         if (tileObject == null)
+        {
+            ClearHoveredTile();
+            return;
+        }
+
+        if (selectTile != null && (selectTile.IsSelectedCoordinate(hoveredCoordinate) || selectTile.SelectedTile == tileObject))
         {
             ClearHoveredTile();
             return;
@@ -353,7 +393,7 @@ public class TileBuilding : MonoBehaviour
             hoveredTile = gridMap.GetTileInstanceAt(coordinate.x, coordinate.y);
             if (hoveredTile != null)
             {
-                hoveredBasePosition = hoveredTile.transform.localPosition;
+                hoveredBasePosition = GetFlatBasePosition(hoveredTile.transform.localPosition);
             }
         }
 
@@ -537,7 +577,7 @@ public class TileBuilding : MonoBehaviour
         }
 
         hoveredTile = tileObject;
-        hoveredBasePosition = hoveredTile.transform.localPosition;
+        hoveredBasePosition = GetFlatBasePosition(hoveredTile.transform.localPosition);
         hoveredCoordinate = coordinate;
 
         if (CanBuildOnTile(coordinate, out int woodCost, out int stoneCost) && enableDebugLogs)
@@ -550,7 +590,7 @@ public class TileBuilding : MonoBehaviour
     {
         if (hoveredTile != null)
         {
-            hoveredTile.transform.localPosition = hoveredBasePosition;
+            ResetTileLift(hoveredTile, hoveredBasePosition);
             hoveredTile = null;
         }
 
@@ -559,13 +599,37 @@ public class TileBuilding : MonoBehaviour
 
     private void AnimateTiles()
     {
-        float t = Mathf.Clamp01(Time.deltaTime * hoverAnimationSpeed);
-
         if (hoveredTile != null)
         {
-            Vector3 upTarget = hoveredBasePosition + Vector3.up * hoverLiftHeight;
-            hoveredTile.transform.localPosition = Vector3.Lerp(hoveredTile.transform.localPosition, upTarget, t);
+            AnimateTileLift(hoveredTile, hoveredBasePosition, hoverLiftHeight, hoverAnimationSpeed);
         }
+    }
+
+    public static void ResetTileLift(GameObject tileObject, Vector3 basePosition)
+    {
+        if (tileObject == null)
+        {
+            return;
+        }
+
+        tileObject.transform.localPosition = basePosition;
+    }
+
+    public static void AnimateTileLift(GameObject tileObject, Vector3 basePosition, float liftHeight, float animationSpeed)
+    {
+        if (tileObject == null)
+        {
+            return;
+        }
+
+        float t = Mathf.Clamp01(Time.deltaTime * animationSpeed);
+        Vector3 upTarget = basePosition + Vector3.up * liftHeight;
+        tileObject.transform.localPosition = Vector3.Lerp(tileObject.transform.localPosition, upTarget, t);
+    }
+
+    private static Vector3 GetFlatBasePosition(Vector3 localPosition)
+    {
+        return new Vector3(localPosition.x, 0f, localPosition.z);
     }
 
     private void SpawnBuildEffectAt(Vector2Int coordinate)
