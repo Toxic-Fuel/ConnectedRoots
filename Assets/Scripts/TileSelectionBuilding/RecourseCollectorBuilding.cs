@@ -1,5 +1,6 @@
 using GridGeneration;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class RecourseCollectorBuilding : MonoBehaviour
 {
@@ -11,7 +12,66 @@ public class RecourseCollectorBuilding : MonoBehaviour
     }
 
     [SerializeField] private GridMap gridMap;
-    [SerializeField] private BuildingType selectedBuilding;
+    [SerializeField] private BuildingType selectedBuilding = BuildingType.Sawmill;
+
+    private Keyboard keyboard;
+    private bool mineModeSelected;
+
+    private void OnEnable()
+    {
+        keyboard = Keyboard.current;
+    }
+
+    private void Update()
+    {
+        HandleBuildingKeybinds();
+    }
+
+    private void HandleBuildingKeybinds()
+    {
+        if (keyboard == null)
+        {
+            return;
+        }
+
+        if (keyboard.oKey.wasPressedThisFrame)
+        {
+            ToggleMineMode();
+        }
+
+        if (mineModeSelected)
+        {
+            if (keyboard.digit1Key.wasPressedThisFrame)
+            {
+                SelectBuilding(BuildingType.Mine1);
+            }
+            else if (keyboard.digit2Key.wasPressedThisFrame)
+            {
+                SelectBuilding(BuildingType.Mine2);
+            }
+        }
+        else
+        {
+            if (keyboard.digit1Key.wasPressedThisFrame)
+            {
+                SelectBuilding(BuildingType.Sawmill);
+            }
+        }
+    }
+
+    private void ToggleMineMode()
+    {
+        mineModeSelected = !mineModeSelected;
+
+        if (mineModeSelected)
+        {
+            SelectBuilding(BuildingType.Mine1);
+        }
+        else
+        {
+            SelectBuilding(BuildingType.Sawmill);
+        }
+    }
 
     public bool CanPlaceSelectedBuilding(Vector2Int coordinate)
     {
@@ -45,5 +105,10 @@ public class RecourseCollectorBuilding : MonoBehaviour
             default:
                 return false;
         }
+    }
+
+    private void SelectBuilding(BuildingType buildingType)
+    {
+        selectedBuilding = buildingType;
     }
 }
