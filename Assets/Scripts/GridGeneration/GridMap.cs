@@ -17,6 +17,18 @@ namespace GridGeneration
             Vector2Int.left
         };
 
+        private static readonly Vector2Int[] SurroundingDirections =
+        {
+            new Vector2Int(-1, -1),
+            new Vector2Int(0, -1),
+            new Vector2Int(1, -1),
+            new Vector2Int(-1, 0),
+            new Vector2Int(1, 0),
+            new Vector2Int(-1, 1),
+            new Vector2Int(0, 1),
+            new Vector2Int(1, 1)
+        };
+
         [SerializeField] private int width = 20;
         [SerializeField] private int height = 20;
         public int Width => width;
@@ -247,32 +259,32 @@ namespace GridGeneration
 
             var candidateCoordinates = new List<Vector2Int>();
             var seenCoordinates = new HashSet<Vector2Int>();
-            for (int i = 0; i < villageCoordinates.Count; i++)
+            int maxCandidateTries = villageCoordinates.Count * 8;
+            for (int attempt = 0; attempt < maxCandidateTries; attempt++)
             {
-                Vector2Int village = villageCoordinates[i];
-                for (int directionIndex = 0; directionIndex < CardinalDirections.Length; directionIndex++)
+                Vector2Int village = villageCoordinates[rng.Next(0, villageCoordinates.Count)];
+                Vector2Int direction = SurroundingDirections[rng.Next(0, SurroundingDirections.Length)];
+                Vector2Int candidate = village + direction;
+                if (!IsInsideGrid(candidate))
                 {
-                    Vector2Int candidate = village + CardinalDirections[directionIndex];
-                    if (!IsInsideGrid(candidate))
-                    {
-                        continue;
-                    }
+                    continue;
+                }
 
-                    if (protectedTileMap[candidate.x, candidate.y])
-                    {
-                        continue;
-                    }
+                // Quests are never allowed on protected tiles.
+                if (protectedTileMap[candidate.x, candidate.y])
+                {
+                    continue;
+                }
 
-                    GridTile candidateTile = tileMap[candidate.x, candidate.y];
-                    if (candidateTile == null || candidateTile.tileType != TileType.Land)
-                    {
-                        continue;
-                    }
+                GridTile candidateTile = tileMap[candidate.x, candidate.y];
+                if (candidateTile == null || candidateTile.tileType != TileType.Land)
+                {
+                    continue;
+                }
 
-                    if (seenCoordinates.Add(candidate))
-                    {
-                        candidateCoordinates.Add(candidate);
-                    }
+                if (seenCoordinates.Add(candidate))
+                {
+                    candidateCoordinates.Add(candidate);
                 }
             }
 
@@ -296,6 +308,12 @@ namespace GridGeneration
             for (int i = 0; i < placedQuestCount; i++)
             {
                 Vector2Int coordinate = candidateCoordinates[i];
+
+                if (protectedTileMap[coordinate.x, coordinate.y])
+                {
+                    continue;
+                }
+
                 ReplaceTileAt(coordinate.x, coordinate.y, questTile);
                 protectedTileMap[coordinate.x, coordinate.y] = true;
             }
