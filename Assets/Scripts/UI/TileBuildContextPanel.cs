@@ -1,5 +1,6 @@
 using GridGeneration;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 public class TileBuildContextPanel : MonoBehaviour
@@ -16,17 +17,16 @@ public class TileBuildContextPanel : MonoBehaviour
     [SerializeField] private Button buildSawmillButton;
     [SerializeField] private Button buildStoneMineButton;
 
-    [Header("Panel Position")]
-    [SerializeField] private Vector3 worldOffset = new Vector3(0f, 1.15f, 0f);
-    [SerializeField] private Vector2 canvasOffset = new Vector2(0f, 36f);
-    [SerializeField] private float extraVerticalPixels = 120f;
-    [SerializeField] private float screenEdgePadding = 8f;
-
     [Header("Tile Name Rules")]
     [SerializeField] private string[] woodValleyKeywords = { "wood valley", "wood" };
     [SerializeField] private string[] stoneValleyKeywords = { "stone valley", "stone" };
 
+    [Header("Transitions")]
+    [SerializeField, Min(0f)] private float tileSwitchHideDuration = 0.06f;
+
     private Vector2Int currentCoordinate = new Vector2Int(-1, -1);
+    private Vector2Int lastCoordinate = new Vector2Int(-1, -1);
+    private float hideUntilTime;
     private bool useCanvasGroupVisibility;
     private CanvasGroup panelCanvasGroup;
 
@@ -69,7 +69,9 @@ public class TileBuildContextPanel : MonoBehaviour
 
         if (panelRoot != null)
         {
-            panelRoot.pivot = new Vector2(0.5f, 0f);
+            panelRoot.anchorMin = new Vector2(0.5f, 0.5f);
+            panelRoot.anchorMax = new Vector2(0.5f, 0.5f);
+            panelRoot.pivot = new Vector2(0.5f, 0.5f);
         }
 
         if (panelRoot != null && panelRoot.gameObject == gameObject)
@@ -93,8 +95,9 @@ public class TileBuildContextPanel : MonoBehaviour
             return;
         }
 
-        if (!tileBuilding.TryGetHoveredCoordinate(out Vector2Int coordinate))
+        if (!TryGetMouseGridCoordinate(out Vector2Int coordinate))
         {
+            lastCoordinate = new Vector2Int(-1, -1);
             SetPanelVisible(false);
             return;
         }
@@ -103,14 +106,55 @@ public class TileBuildContextPanel : MonoBehaviour
         GameObject tileInstance = gridMap.GetTileInstanceAt(coordinate.x, coordinate.y);
         if (tile == null || tileInstance == null)
         {
+            lastCoordinate = new Vector2Int(-1, -1);
             SetPanelVisible(false);
             return;
         }
 
+        if (coordinate != lastCoordinate)
+        {
+            lastCoordinate = coordinate;
+            if (tileSwitchHideDuration > 0f)
+            {
+                hideUntilTime = Time.unscaledTime + tileSwitchHideDuration;
+                SetPanelVisible(false);
+                return;
+            }
+        }
+
+        if (Time.unscaledTime < hideUntilTime)
+        {
+            SetPanelVisible(false);
+            return;
+        }
+
+        bool tileChanged = coordinate != currentCoordinate;
         currentCoordinate = coordinate;
         UpdatePanelButtons(tile, coordinate);
-        UpdatePanelPosition(tileInstance.transform.position);
+        if (tileChanged)
+        {
+            UpdatePanelPosition(tileInstance.transform.position);
+        }
         SetPanelVisible(true);
+    }
+
+    private bool TryGetMouseGridCoordinate(out Vector2Int coordinate)
+    {
+        coordinate = new Vector2Int(-1, -1);
+        if (worldCamera == null || Mouse.current == null || gridMap == null)
+        {
+            return false;
+        }
+
+        Ray ray = worldCamera.ScreenPointToRay(Mouse.current.position.ReadValue());
+        Plane groundPlane = new Plane(Vector3.up, new Vector3(0f, gridMap.transform.position.y, 0f));
+        if (!groundPlane.Raycast(ray, out float enterDistance))
+        {
+            return false;
+        }
+
+        Vector3 worldPoint = ray.GetPoint(enterDistance);
+        return gridMap.TryWorldToGridCoordinate(worldPoint, out coordinate);
     }
 
     private void UpdatePanelButtons(GridTile tile, Vector2Int coordinate)
@@ -142,50 +186,24 @@ public class TileBuildContextPanel : MonoBehaviour
 
     private void UpdatePanelPosition(Vector3 worldPosition)
     {
-        if (canvas == null || worldCamera == null)
+        if (canvas == null || worldCamera == null || panelRoot == null)
         {
             return;
         }
 
         UnityEngine.Camera uiCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : worldCamera;
-        RectTransform canvasRect = canvas.transform as RectTransform;
-        if (canvasRect == null)
+        RectTransform parentRect = panelRoot.parent as RectTransform;
+        if (parentRect == null)
         {
             return;
         }
 
-        Vector3 cameraRelativeOffset =
-            worldCamera.transform.right * worldOffset.x +
-            worldCamera.transform.up * worldOffset.y +
-            worldCamera.transform.forward * worldOffset.z;
+        Vector2 screenPoint = RectTransformUtility.WorldToScreenPoint(worldCamera, worldPosition);
 
-        Vector2 screenPoint = RectTransformUtility.WorldToScreenPoint(worldCamera, worldPosition + cameraRelativeOffset);
-        if (RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, screenPoint, uiCamera, out Vector2 localPoint))
+        if (RectTransformUtility.ScreenPointToLocalPointInRectangle(parentRect, screenPoint, uiCamera, out Vector2 localPoint))
         {
-            float verticalOffset = Mathf.Abs(canvasOffset.y) + Mathf.Max(0f, extraVerticalPixels);
-            Vector2 target = localPoint + new Vector2(canvasOffset.x, verticalOffset);
-            panelRoot.anchoredPosition = ClampPanelToCanvas(target, canvasRect);
+            panelRoot.anchoredPosition = localPoint;
         }
-    }
-
-    private Vector2 ClampPanelToCanvas(Vector2 targetPosition, RectTransform canvasRect)
-    {
-        Vector2 panelSize = new Vector2(
-            panelRoot.rect.width * Mathf.Abs(panelRoot.localScale.x),
-            panelRoot.rect.height * Mathf.Abs(panelRoot.localScale.y)
-        );
-        Vector2 pivot = panelRoot.pivot;
-        Rect rect = canvasRect.rect;
-
-        float minX = rect.xMin + panelSize.x * pivot.x + screenEdgePadding;
-        float maxX = rect.xMax - panelSize.x * (1f - pivot.x) - screenEdgePadding;
-        float minY = rect.yMin + panelSize.y * pivot.y + screenEdgePadding;
-        float maxY = rect.yMax - panelSize.y * (1f - pivot.y) - screenEdgePadding;
-
-        return new Vector2(
-            Mathf.Clamp(targetPosition.x, minX, maxX),
-            Mathf.Clamp(targetPosition.y, minY, maxY)
-        );
     }
 
     private bool IsTileMatchingAnyKeyword(GridTile tile, string[] keywords)
