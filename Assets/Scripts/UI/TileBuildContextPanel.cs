@@ -7,6 +7,7 @@ public class TileBuildContextPanel : MonoBehaviour
 {
     [Header("References")]
     [SerializeField] private TileBuilding tileBuilding;
+    [SerializeField] private SelectTile selectTile;
     [SerializeField] private GridMap gridMap;
     [SerializeField] private Canvas canvas;
     [SerializeField] private UnityEngine.Camera worldCamera;
@@ -40,6 +41,11 @@ public class TileBuildContextPanel : MonoBehaviour
         if (gridMap == null)
         {
             gridMap = FindAnyObjectByType<GridMap>();
+        }
+
+        if (selectTile == null)
+        {
+            selectTile = FindAnyObjectByType<SelectTile>();
         }
 
         if (canvas == null)
@@ -95,12 +101,14 @@ public class TileBuildContextPanel : MonoBehaviour
             return;
         }
 
-        if (!TryGetMouseGridCoordinate(out Vector2Int coordinate))
+        if (selectTile == null || !selectTile.HasSelection)
         {
             lastCoordinate = new Vector2Int(-1, -1);
             SetPanelVisible(false);
             return;
         }
+
+        Vector2Int coordinate = selectTile.SelectedCoordinate;
 
         GridTile tile = gridMap.GetTileAt(coordinate.x, coordinate.y);
         GameObject tileInstance = gridMap.GetTileInstanceAt(coordinate.x, coordinate.y);
@@ -133,28 +141,9 @@ public class TileBuildContextPanel : MonoBehaviour
         UpdatePanelButtons(tile, coordinate);
         if (tileChanged)
         {
-            UpdatePanelPosition(tileInstance.transform.position);
+            UpdatePanelPositionAtSelection(tileInstance.transform.position);
         }
         SetPanelVisible(true);
-    }
-
-    private bool TryGetMouseGridCoordinate(out Vector2Int coordinate)
-    {
-        coordinate = new Vector2Int(-1, -1);
-        if (worldCamera == null || Mouse.current == null || gridMap == null)
-        {
-            return false;
-        }
-
-        Ray ray = worldCamera.ScreenPointToRay(Mouse.current.position.ReadValue());
-        Plane groundPlane = new Plane(Vector3.up, new Vector3(0f, gridMap.transform.position.y, 0f));
-        if (!groundPlane.Raycast(ray, out float enterDistance))
-        {
-            return false;
-        }
-
-        Vector3 worldPoint = ray.GetPoint(enterDistance);
-        return gridMap.TryWorldToGridCoordinate(worldPoint, out coordinate);
     }
 
     private void UpdatePanelButtons(GridTile tile, Vector2Int coordinate)
@@ -184,7 +173,7 @@ public class TileBuildContextPanel : MonoBehaviour
         }
     }
 
-    private void UpdatePanelPosition(Vector3 worldPosition)
+    private void UpdatePanelPositionAtSelection(Vector3 worldPosition)
     {
         if (canvas == null || worldCamera == null || panelRoot == null)
         {
@@ -198,7 +187,9 @@ public class TileBuildContextPanel : MonoBehaviour
             return;
         }
 
-        Vector2 screenPoint = RectTransformUtility.WorldToScreenPoint(worldCamera, worldPosition);
+        Vector2 screenPoint = Mouse.current != null
+            ? Mouse.current.position.ReadValue()
+            : RectTransformUtility.WorldToScreenPoint(worldCamera, worldPosition);
 
         if (RectTransformUtility.ScreenPointToLocalPointInRectangle(parentRect, screenPoint, uiCamera, out Vector2 localPoint))
         {

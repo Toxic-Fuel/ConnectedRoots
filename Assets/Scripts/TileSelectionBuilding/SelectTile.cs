@@ -8,6 +8,7 @@ public class SelectTile : MonoBehaviour
     [SerializeField] private GridMap gridMap;
     [SerializeField] private Camera mainCamera;
     [SerializeField] private TileBuilding hoverAnimationSource;
+    [SerializeField] private InputActionReference selectAction;
 
     [Header("Selection Animation")]
     [SerializeField] private float selectedLiftHeight = 0.2f;
@@ -46,6 +47,14 @@ public class SelectTile : MonoBehaviour
         }
     }
 
+    private void OnEnable()
+    {
+        if (selectAction != null && selectAction.action != null)
+        {
+            selectAction.action.Enable();
+        }
+    }
+
     private void Update()
     {
         if (gridMap == null || mainCamera == null)
@@ -59,12 +68,27 @@ public class SelectTile : MonoBehaviour
 
     private void OnDisable()
     {
+        if (selectAction != null && selectAction.action != null)
+        {
+            selectAction.action.Disable();
+        }
+
         DeselectTile();
     }
 
     private void TryToggleSelectionOnClick()
     {
-        if (Mouse.current == null || !Mouse.current.leftButton.wasPressedThisFrame)
+        bool selectionPressed = false;
+        if (selectAction != null && selectAction.action != null)
+        {
+            selectionPressed = selectAction.action.WasPressedThisFrame();
+        }
+        else if (Mouse.current != null)
+        {
+            selectionPressed = Mouse.current.leftButton.wasPressedThisFrame;
+        }
+
+        if (!selectionPressed)
         {
             return;
         }

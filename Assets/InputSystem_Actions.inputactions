@@ -104,6 +104,15 @@
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
+                },
+                {
+                    "name": "Select Tile",
+                    "type": "Button",
+                    "id": "66500023-beee-4bfe-8e4d-0fa3e54d09c6",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
                 }
             ],
             "bindings": [
@@ -533,6 +542,28 @@
                     "processors": "",
                     "groups": ";Touch",
                     "action": "Build Road",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "4726b599-5fc8-4da1-9388-b7bd69011409",
+                    "path": "<Touchscreen>/Press",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Touch",
+                    "action": "Select Tile",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "06927242-8301-489a-9943-344f97e9c121",
+                    "path": "<Mouse>/leftButton",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Keyboard&Mouse",
+                    "action": "Select Tile",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }

@@ -11,10 +11,15 @@ public class CameraWASD : MonoBehaviour
 
     private Keyboard keyboard;
     private Vector3 movementDirection;
+    [SerializeField] private SelectTile selectTile;
 
     private void OnEnable()
     {
         keyboard = Keyboard.current;
+        if (selectTile == null)
+        {
+            selectTile = FindAnyObjectByType<SelectTile>();
+        }
     }
 
     private void Update()
@@ -27,6 +32,12 @@ public class CameraWASD : MonoBehaviour
     {
         if (keyboard == null)
             return;
+
+        if (selectTile != null && selectTile.HasSelection)
+        {
+            movementDirection = Vector3.zero;
+            return;
+        }
 
         movementDirection = Vector3.zero;
 

@@ -14,10 +14,15 @@ public class CameraLeftClick : MonoBehaviour
     private Mouse mouse;
     private Vector2 smoothedDelta;
     private Vector2 deltaVelocity;
+    [SerializeField] private SelectTile selectTile;
 
     private void OnEnable()
     {
         mouse = Mouse.current;
+        if (selectTile == null)
+        {
+            selectTile = FindAnyObjectByType<SelectTile>();
+        }
     }
 
     private void Update()
@@ -29,6 +34,14 @@ public class CameraLeftClick : MonoBehaviour
     {
         if (mouse == null)
             return;
+
+        if (selectTile != null && selectTile.HasSelection)
+        {
+            isDragging = false;
+            smoothedDelta = Vector2.zero;
+            deltaVelocity = Vector2.zero;
+            return;
+        }
 
         if (mouse.leftButton.wasPressedThisFrame)
         {
@@ -57,10 +70,10 @@ public class CameraLeftClick : MonoBehaviour
 
         Vector3 forward = transform.forward;
         Vector3 right = transform.right;
-        
+
         forward.y = 0;
         right.y = 0;
-        
+
         forward.Normalize();
         right.Normalize();
 
