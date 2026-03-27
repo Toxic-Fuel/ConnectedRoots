@@ -21,6 +21,8 @@ public class SelectTile : MonoBehaviour
     private Vector2Int selectedCoordinate = new Vector2Int(-1, -1);
     private Vector2Int lastDeselectedCoordinate = new Vector2Int(-1, -1);
     private int lastDeselectedFrame = -1000;
+    private int defaultLayer = -1;
+    private int outlineLayer = -1;
 
     public GameObject SelectedTile => selectedTile;
     public Vector2Int SelectedCoordinate => selectedCoordinate;
@@ -43,6 +45,9 @@ public class SelectTile : MonoBehaviour
 
     private void Awake()
     {
+        defaultLayer = LayerMask.NameToLayer("Default");
+        outlineLayer = LayerMask.NameToLayer("Outline");
+
         if (mainCamera == null)
         {
             mainCamera = Camera.main;
@@ -218,10 +223,12 @@ public class SelectTile : MonoBehaviour
     private void SelectTileAt(GameObject tileObject, Vector2Int coordinate)
     {
         RestoreSelectedTilePosition();
+        SetTileAndChildrenLayer(selectedTile, defaultLayer);
 
         selectedTile = tileObject;
         selectedCoordinate = coordinate;
         selectedBasePosition = GetFlatBasePosition(selectedTile.transform.localPosition);
+        SetTileAndChildrenLayer(selectedTile, outlineLayer);
     }
 
     private void DeselectTile()
@@ -229,6 +236,7 @@ public class SelectTile : MonoBehaviour
         lastDeselectedCoordinate = selectedCoordinate;
         lastDeselectedFrame = Time.frameCount;
         RestoreSelectedTilePosition();
+        SetTileAndChildrenLayer(selectedTile, defaultLayer);
         selectedTile = null;
         selectedCoordinate = new Vector2Int(-1, -1);
     }
@@ -259,8 +267,10 @@ public class SelectTile : MonoBehaviour
 
         if (selectedTile != currentTileAtCoordinate)
         {
+            SetTileAndChildrenLayer(selectedTile, defaultLayer);
             selectedTile = currentTileAtCoordinate;
             selectedBasePosition = GetFlatBasePosition(selectedTile.transform.localPosition);
+            SetTileAndChildrenLayer(selectedTile, outlineLayer);
         }
 
         if (selectedTile == null)
@@ -276,5 +286,19 @@ public class SelectTile : MonoBehaviour
     private static Vector3 GetFlatBasePosition(Vector3 localPosition)
     {
         return new Vector3(localPosition.x, 0f, localPosition.z);
+    }
+
+    private static void SetTileAndChildrenLayer(GameObject tileObject, int layer)
+    {
+        if (tileObject == null || layer < 0)
+        {
+            return;
+        }
+
+        Transform[] transforms = tileObject.GetComponentsInChildren<Transform>(true);
+        for (int i = 0; i < transforms.Length; i++)
+        {
+            transforms[i].gameObject.layer = layer;
+        }
     }
 }
