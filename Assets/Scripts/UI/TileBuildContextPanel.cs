@@ -1,6 +1,5 @@
 using GridGeneration;
 using UnityEngine;
-using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 public class TileBuildContextPanel : MonoBehaviour
@@ -27,6 +26,10 @@ public class TileBuildContextPanel : MonoBehaviour
 
     [Header("Clamping")]
     [SerializeField, Min(0f)] private float screenEdgePadding = 10f;
+
+    [Header("Spawn Offset")]
+    [SerializeField] private float spawnOffsetY = 64f;
+    [SerializeField, Min(0f)] private float selectedTileClearancePixels = 40f;
 
     private Vector2Int currentCoordinate = new Vector2Int(-1, -1);
     private Vector2Int lastCoordinate = new Vector2Int(-1, -1);
@@ -190,17 +193,45 @@ public class TileBuildContextPanel : MonoBehaviour
             return;
         }
 
-        Vector2 screenPoint = Mouse.current != null
-            ? Mouse.current.position.ReadValue()
-            : RectTransformUtility.WorldToScreenPoint(worldCamera, worldPosition);
+        Vector2 screenPoint = RectTransformUtility.WorldToScreenPoint(worldCamera, worldPosition);
 
         if (RectTransformUtility.ScreenPointToLocalPointInRectangle(parentRect, screenPoint, uiCamera, out Vector2 localPoint))
         {
-            panelRoot.anchoredPosition = ClampToParent(localPoint, parentRect);
+            Vector2 panelSize = GetPanelSizeInParentSpace();
+            float offsetY = Mathf.Abs(spawnOffsetY);
+            float topPart = panelSize.y * (1f - panelRoot.pivot.y);
+            float bottomPart = panelSize.y * panelRoot.pivot.y;
+
+            float aboveY = localPoint.y + selectedTileClearancePixels + bottomPart + offsetY;
+            Vector2 spawnAbove = new Vector2(localPoint.x, aboveY);
+            Vector2 clampedAbove = ClampToParent(spawnAbove, parentRect);
+            bool aboveKeepsTileVisible = (clampedAbove.y - bottomPart) >= (localPoint.y + selectedTileClearancePixels);
+
+            if (aboveKeepsTileVisible)
+            {
+                panelRoot.anchoredPosition = clampedAbove;
+                return;
+            }
+
+            float belowY = localPoint.y - selectedTileClearancePixels - topPart - offsetY;
+            Vector2 spawnBelow = new Vector2(localPoint.x, belowY);
+            Vector2 clampedBelow = ClampToParent(spawnBelow, parentRect);
+            bool belowKeepsTileVisible = (clampedBelow.y + topPart) <= (localPoint.y - selectedTileClearancePixels);
+
+            if (belowKeepsTileVisible)
+            {
+                panelRoot.anchoredPosition = clampedBelow;
+                return;
+            }
+
+            // If both sides are constrained by edges, keep the side with more visual clearance.
+            float aboveGap = (clampedAbove.y - bottomPart) - localPoint.y;
+            float belowGap = localPoint.y - (clampedBelow.y + topPart);
+            panelRoot.anchoredPosition = aboveGap >= belowGap ? clampedAbove : clampedBelow;
         }
     }
 
-    private Vector2 ClampToParent(Vector2 targetPosition, RectTransform parentRect)
+    private Vector2 GetPanelSizeInParentSpace()
     {
         Vector2 panelSize = new Vector2(
             panelRoot.rect.width * Mathf.Abs(panelRoot.lossyScale.x),
@@ -211,6 +242,13 @@ public class TileBuildContextPanel : MonoBehaviour
         {
             panelSize /= canvasScale;
         }
+
+        return panelSize;
+    }
+
+    private Vector2 ClampToParent(Vector2 targetPosition, RectTransform parentRect)
+    {
+        Vector2 panelSize = GetPanelSizeInParentSpace();
 
         Vector2 pivot = panelRoot.pivot;
         Rect parent = parentRect.rect;
