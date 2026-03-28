@@ -23,13 +23,9 @@ public class Turns : MonoBehaviour
     [SerializeField, Min(0)] private int woodPerTurn = 1;
     [SerializeField, Min(0)] private int stonePerTurn = 1;
 
-    [Header("Connected Village Bonus Per Turn")]
-    [SerializeField, Min(0)] private int woodPerConnectedVillage = 1;
-    [SerializeField, Min(0)] private int stonePerConnectedVillage = 1;
-
     [Header("Starting Resources")]
-    [SerializeField] private int startingWood = 0;
-    [SerializeField] private int startingStone = 0;
+    [SerializeField, Min(0)] private int startingWood = 0;
+    [SerializeField, Min(0)] private int startingStone = 0;
 
     [Header("Input")]
     [SerializeField] private InputActionReference endTurnAction;
@@ -37,6 +33,13 @@ public class Turns : MonoBehaviour
     [Header("UI")]
     [SerializeField] private ResourceTurnsUI resourceTurnsUI;
     [SerializeField] private TileBuilding tileBuilding;
+
+    [Header("Win Lose Con")]
+    [SerializeField] private WinOrLose winOrLose;
+
+    [Header("Connected Village Bonus Per Turn")]
+    [SerializeField, Min(0)] private int woodPerConnectedVillage = 1;
+    [SerializeField, Min(0)] private int stonePerConnectedVillage = 1;
 
     private int _currentTurn;
     private int _currentWood;
@@ -119,17 +122,17 @@ public class Turns : MonoBehaviour
 
     public bool TrySpendTurns(int turnCost)
     {
+        if (turnCost < 0)
+        {
+            return false;
+        }
+
         if (!CanAffordTurns(turnCost))
         {
             return false;
         }
 
-        if (turnCost == 0)
-        {
-            return true;
-        }
-
-        RemainingTurns -= turnCost;
+        RemainingTurns = Mathf.Max(0, RemainingTurns - turnCost);
         RefreshUI();
 
         if (RemainingTurns == 0)
@@ -243,11 +246,18 @@ public class Turns : MonoBehaviour
         }
 
         State = TurnState.ResolvingTurn;
-        RemainingTurns = Mathf.Max(0, RemainingTurns - 1);
+
+        if (RemainingTurns > 0)
+        {
+            RemainingTurns--;
+        }
+
+        RemainingTurns = Mathf.Max(0, RemainingTurns);
+        RefreshUI();
 
         TurnEnded?.Invoke(this);
 
-        if (RemainingTurns <= 0)
+        if (RemainingTurns == 0)
         {
             SetLoseState();
             return true;
@@ -275,10 +285,25 @@ public class Turns : MonoBehaviour
         Debug.Log("Encounter won!");
         State = TurnState.Win;
         EncounterWon?.Invoke(this);
+
+        if (winOrLose != null)
+        {
+            winOrLose.CheckWinOrLose(State);
+        }
     }
 
     private void BeginPlayerTurn()
     {
+        if (State == TurnState.Win || State == TurnState.Lose)
+        {
+            return;
+        }
+
+        if (winOrLose != null)
+        {
+            winOrLose.CheckWinOrLose(State);
+        }
+
         if (State == TurnState.Win || State == TurnState.Lose)
         {
             return;
@@ -328,10 +353,20 @@ public class Turns : MonoBehaviour
         return tileBuilding != null ? Mathf.Max(0, tileBuilding.GetConnectedVillageCount()) : 0;
     }
 
-    private void SetLoseState()
+    public void SetLoseState()
     {
+        if (State == TurnState.Win || State == TurnState.Lose)
+        {
+            return;
+        }
+
         State = TurnState.Lose;
         EncounterLost?.Invoke(this);
+        Debug.Log("Encounter lost!");
 
+        if (winOrLose != null)
+        {
+            winOrLose.CheckWinOrLose(State);
+        }
     }
 }

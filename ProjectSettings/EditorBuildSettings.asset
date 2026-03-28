@@ -14,5 +14,11 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/GridScene.unity
     guid: 249a011ca6fadd94d82a7f8b39cb981a
+  - enabled: 1
+    path: Assets/Scenes/VictoryScene.unity
+    guid: 8f8bc74f27afc78469ca34189a810ae8
+  - enabled: 1
+    path: Assets/Scenes/DefeatScene.unity
+    guid: 84cbfbf01062eb94cb2155aa908e8273
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
