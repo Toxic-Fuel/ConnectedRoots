@@ -1,4 +1,4 @@
-# 🏘️ Village Roads — Road Builder & Resource Management Game
+# 🏘️ Connected Roots — Road Builder & Resource Management Game
 
 A turn-based 3D road builder and resource management game built in Unity, focused on the challenges faced by rural Bulgarian villages — lack of infrastructure, healthcare, and basic resources.
 
