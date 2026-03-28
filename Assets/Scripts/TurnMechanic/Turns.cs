@@ -20,8 +20,12 @@ public class Turns : MonoBehaviour
     [SerializeField] private bool autoEndWhenOutOfActions = true;
 
     [Header("Resource Income Per Turn")]
-    [SerializeField] private int woodPerTurn = 1;
-    [SerializeField] private int stonePerTurn = 1;
+    [SerializeField, Min(0)] private int woodPerTurn = 1;
+    [SerializeField, Min(0)] private int stonePerTurn = 1;
+
+    [Header("Connected Village Bonus Per Turn")]
+    [SerializeField, Min(0)] private int woodPerConnectedVillage = 1;
+    [SerializeField, Min(0)] private int stonePerConnectedVillage = 1;
 
     [Header("Starting Resources")]
     [SerializeField] private int startingWood = 0;
@@ -32,6 +36,7 @@ public class Turns : MonoBehaviour
 
     [Header("UI")]
     [SerializeField] private ResourceTurnsUI resourceTurnsUI;
+    [SerializeField] private TileBuilding tileBuilding;
 
     private int _currentTurn;
     private int _currentWood;
@@ -287,8 +292,12 @@ public class Turns : MonoBehaviour
 
     private void GrantTurnResources()
     {
-        CurrentWood += Mathf.Max(0, woodPerTurn);
-        CurrentStone += Mathf.Max(0, stonePerTurn);
+        int connectedVillageCount = GetConnectedVillageCount();
+        int villageWoodBonus = connectedVillageCount * Mathf.Max(0, woodPerConnectedVillage);
+        int villageStoneBonus = connectedVillageCount * Mathf.Max(0, stonePerConnectedVillage);
+
+        CurrentWood += Mathf.Max(0, woodPerTurn) + villageWoodBonus;
+        CurrentStone += Mathf.Max(0, stonePerTurn) + villageStoneBonus;
         ResourcesGained?.Invoke(this);
         RefreshUI();
     }
@@ -300,7 +309,23 @@ public class Turns : MonoBehaviour
             return;
         }
 
-        resourceTurnsUI.UpdateTexts(CurrentWood, CurrentStone, RemainingTurns, Mathf.Max(0, woodPerTurn), Mathf.Max(0, stonePerTurn));
+        int connectedVillageCount = GetConnectedVillageCount();
+        int villageWoodBonus = connectedVillageCount * Mathf.Max(0, woodPerConnectedVillage);
+        int villageStoneBonus = connectedVillageCount * Mathf.Max(0, stonePerConnectedVillage);
+
+        int displayedWoodPerTurn = Mathf.Max(0, woodPerTurn) + villageWoodBonus;
+        int displayedStonePerTurn = Mathf.Max(0, stonePerTurn) + villageStoneBonus;
+        resourceTurnsUI.UpdateTexts(CurrentWood, CurrentStone, RemainingTurns, displayedWoodPerTurn, displayedStonePerTurn);
+    }
+
+    private int GetConnectedVillageCount()
+    {
+        if (tileBuilding == null)
+        {
+            tileBuilding = FindAnyObjectByType<TileBuilding>();
+        }
+
+        return tileBuilding != null ? Mathf.Max(0, tileBuilding.GetConnectedVillageCount()) : 0;
     }
 
     private void SetLoseState()

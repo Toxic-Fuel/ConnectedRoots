@@ -56,7 +56,9 @@ public class TileBuilding : MonoBehaviour
     private Vector2Int hoveredCoordinate = new Vector2Int(-1, -1);
     private readonly HashSet<Vector2Int> builtRoads = new HashSet<Vector2Int>();
     private readonly HashSet<Vector2Int> cachedConnectedNodes = new HashSet<Vector2Int>();
+    private readonly HashSet<Vector2Int> countedConnectedVillages = new HashSet<Vector2Int>();
     private bool connectedNodesDirty = true;
+    private int connectedVillageCounter;
 
     public bool TryGetHoveredCoordinate(out Vector2Int coordinate)
     {
@@ -138,6 +140,11 @@ public class TileBuilding : MonoBehaviour
         return TryBuildRoadInternal(coordinate);
     }
 
+    public int GetConnectedVillageCount()
+    {
+        return connectedVillageCounter;
+    }
+
     private void Awake()
     {
         if (gridMap == null)
@@ -168,11 +175,12 @@ public class TileBuilding : MonoBehaviour
                 selectTile = FindAnyObjectByType<SelectTile>();
             }
         }
+
     }
 
     private void Update()
     {
-        if (gridMap == null || turns == null || mainCamera == null)
+        if (gridMap == null || mainCamera == null)
         {
             return;
         }
@@ -330,6 +338,8 @@ public class TileBuilding : MonoBehaviour
         RebuildRoadVisualAt(tileCoordinate + Vector2Int.right);
         RebuildRoadVisualAt(tileCoordinate + Vector2Int.down);
         RebuildRoadVisualAt(tileCoordinate + Vector2Int.left);
+
+        UpdateConnectedVillageCounter();
 
         SpawnBuildEffectAt(tileCoordinate);
         Debug.Log($"Built road at ({tileCoordinate.x}, {tileCoordinate.y}) | Cost: W{woodCost} S{stoneCost}");
@@ -534,6 +544,20 @@ public class TileBuilding : MonoBehaviour
         return false;
     }
 
+    private void UpdateConnectedVillageCounter()
+    {
+        HashSet<Vector2Int> connectedNodes = GetConnectedRoadNetworkNodes();
+
+        foreach (Vector2Int coordinate in connectedNodes)
+        {
+            GridTile tile = gridMap.GetTileAt(coordinate.x, coordinate.y);
+            if (HasExactTileName(tile, "Village") && countedConnectedVillages.Add(coordinate))
+            {
+                connectedVillageCounter++;
+            }
+        }
+    }
+
     private HashSet<Vector2Int> GetConnectedRoadNetworkNodes()
     {
         if (!connectedNodesDirty)
@@ -541,8 +565,14 @@ public class TileBuilding : MonoBehaviour
             return cachedConnectedNodes;
         }
 
+        if (gridMap == null)
+        {
+            return cachedConnectedNodes;
+        }
+
         cachedConnectedNodes.Clear();
         var queue = new Queue<Vector2Int>();
+        bool foundCity = false;
 
         for (int x = 0; x < gridMap.Width; x++)
         {
@@ -554,8 +584,16 @@ public class TileBuilding : MonoBehaviour
                     Vector2Int cityCoordinate = new Vector2Int(x, y);
                     cachedConnectedNodes.Add(cityCoordinate);
                     queue.Enqueue(cityCoordinate);
+                    foundCity = true;
                 }
             }
+        }
+
+        // Grid may not be generated yet during early lifecycle; keep dirty so we refresh again later.
+        if (!foundCity)
+        {
+            connectedNodesDirty = true;
+            return cachedConnectedNodes;
         }
 
         while (queue.Count > 0)
@@ -594,14 +632,22 @@ public class TileBuilding : MonoBehaviour
 
     private static bool IsSettlementTile(GridTile tile)
     {
-        return HasExactTileName(tile, "City") || HasExactTileName(tile, "Village");
+        if (tile == null)
+        {
+            return false;
+        }
+
+        return tile.tileType == TileType.City
+            || tile.tileType == TileType.Village
+            || HasExactTileName(tile, "City")
+            || HasExactTileName(tile, "Village");
     }
 
     private static bool HasExactTileName(GridTile tile, string expectedName)
     {
         return tile != null
             && !string.IsNullOrWhiteSpace(expectedName)
-            && string.Equals(tile.tileName, expectedName, System.StringComparison.OrdinalIgnoreCase);
+            && string.Equals((tile.tileName ?? string.Empty).Trim(), expectedName.Trim(), System.StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool TryGetRoadCostByTileName(string tileName, out int woodCost, out int stoneCost)
