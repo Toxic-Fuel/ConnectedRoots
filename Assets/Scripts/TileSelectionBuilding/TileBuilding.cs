@@ -87,6 +87,32 @@ public class TileBuilding : MonoBehaviour
         return builtRoads.Contains(coordinate);
     }
 
+    public bool IsBlockedForHoverOrSelection(Vector2Int coordinate)
+    {
+        if (gridMap == null || !gridMap.IsInsideGrid(coordinate))
+        {
+            return true;
+        }
+
+        if (builtRoads.Contains(coordinate))
+        {
+            return true;
+        }
+
+        GridTile tile = gridMap.GetTileAt(coordinate.x, coordinate.y);
+        if (tile == null)
+        {
+            return true;
+        }
+
+        if (tile.tileType == TileType.Road || IsSettlementTile(tile))
+        {
+            return true;
+        }
+
+        return tileBuildContextPanel != null && tileBuildContextPanel.HasCollectorBuildingAt(coordinate);
+    }
+
     public bool CanBuildRoadAt(Vector2Int coordinate)
     {
         if (!gridMap.IsInsideGrid(coordinate))
@@ -114,6 +140,21 @@ public class TileBuilding : MonoBehaviour
 
     private void Awake()
     {
+        if (gridMap == null)
+        {
+            gridMap = FindAnyObjectByType<GridMap>();
+        }
+
+        if (turns == null)
+        {
+            turns = FindAnyObjectByType<Turns>();
+        }
+
+        if (tileBuildContextPanel == null)
+        {
+            tileBuildContextPanel = FindAnyObjectByType<TileBuildContextPanel>();
+        }
+
         if (mainCamera == null)
         {
             mainCamera = UnityEngine.Camera.main;
@@ -170,6 +211,12 @@ public class TileBuilding : MonoBehaviour
         }
 
         if (selectTile != null && selectTile.IsRecentlyDeselectedCoordinate(hoveredCoordinate))
+        {
+            ClearHoveredTile();
+            return;
+        }
+
+        if (IsBlockedForHoverOrSelection(hoveredCoordinate))
         {
             ClearHoveredTile();
             return;

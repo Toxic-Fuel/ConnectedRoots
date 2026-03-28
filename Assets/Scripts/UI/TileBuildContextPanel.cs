@@ -398,6 +398,7 @@ public class TileBuildContextPanel : MonoBehaviour
     public int GetRoadWoodCost() => roadWoodCost;
     public int GetRoadStoneCost() => roadStoneCost;
     public int GetRoadTurnCost() => roadTurnCost;
+    public bool HasCollectorBuildingAt(Vector2Int coordinate) => placedCollectorBuildings.Contains(coordinate);
 
     private void UpdateCostPreviewForSelection(GridTile tile, Vector2Int coordinate)
     {

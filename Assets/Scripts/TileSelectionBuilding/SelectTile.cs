@@ -202,6 +202,11 @@ public class SelectTile : MonoBehaviour
             return;
         }
 
+        if (hoverAnimationSource != null && hoverAnimationSource.IsBlockedForHoverOrSelection(coordinate))
+        {
+            return;
+        }
+
         GameObject clickedTile = gridMap.GetTileInstanceAt(coordinate.x, coordinate.y);
         if (clickedTile == null)
         {
