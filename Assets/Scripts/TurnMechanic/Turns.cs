@@ -160,6 +160,13 @@ public class Turns : MonoBehaviour
 
         endTurnAction.action.Enable();
         endTurnAction.action.performed += OnEndTurnPerformed;
+
+        EnsureTileBuildingReference();
+        if (tileBuilding != null)
+        {
+            tileBuilding.RoadPlaced -= OnRoadPlaced;
+            tileBuilding.RoadPlaced += OnRoadPlaced;
+        }
     }
 
     private void OnDisable()
@@ -171,6 +178,11 @@ public class Turns : MonoBehaviour
 
         endTurnAction.action.performed -= OnEndTurnPerformed;
         endTurnAction.action.Disable();
+
+        if (tileBuilding != null)
+        {
+            tileBuilding.RoadPlaced -= OnRoadPlaced;
+        }
     }
 
     private void Awake()
@@ -273,6 +285,7 @@ public class Turns : MonoBehaviour
     {
         woodPerTurn += Mathf.Max(0, woodBonus);
         stonePerTurn += Mathf.Max(0, stoneBonus);
+        RefreshUI();
     }
 
     public void TriggerWin()
@@ -345,12 +358,21 @@ public class Turns : MonoBehaviour
 
     private int GetConnectedVillageCount()
     {
+        EnsureTileBuildingReference();
+        return tileBuilding != null ? Mathf.Max(0, tileBuilding.GetConnectedVillageCount()) : 0;
+    }
+
+    private void EnsureTileBuildingReference()
+    {
         if (tileBuilding == null)
         {
             tileBuilding = FindAnyObjectByType<TileBuilding>();
         }
+    }
 
-        return tileBuilding != null ? Mathf.Max(0, tileBuilding.GetConnectedVillageCount()) : 0;
+    private void OnRoadPlaced()
+    {
+        RefreshUI();
     }
 
     public void SetLoseState()

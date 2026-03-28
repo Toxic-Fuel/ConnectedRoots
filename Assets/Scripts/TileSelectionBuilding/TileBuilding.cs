@@ -1,4 +1,5 @@
 using GridGeneration;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -59,6 +60,8 @@ public class TileBuilding : MonoBehaviour
     private readonly HashSet<Vector2Int> countedConnectedVillages = new HashSet<Vector2Int>();
     private bool connectedNodesDirty = true;
     private int connectedVillageCounter;
+
+    public event Action RoadPlaced;
 
     public bool TryGetHoveredCoordinate(out Vector2Int coordinate)
     {
@@ -143,6 +146,11 @@ public class TileBuilding : MonoBehaviour
     public int GetConnectedVillageCount()
     {
         return connectedVillageCounter;
+    }
+
+    public void NotifyRoadPlacementChanged()
+    {
+        RoadPlaced?.Invoke();
     }
 
     private void Awake()
@@ -340,6 +348,7 @@ public class TileBuilding : MonoBehaviour
         RebuildRoadVisualAt(tileCoordinate + Vector2Int.left);
 
         UpdateConnectedVillageCounter();
+        RoadPlaced?.Invoke();
 
         SpawnBuildEffectAt(tileCoordinate);
         Debug.Log($"Built road at ({tileCoordinate.x}, {tileCoordinate.y}) | Cost: W{woodCost} S{stoneCost}");

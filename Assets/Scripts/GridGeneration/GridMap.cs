@@ -49,7 +49,7 @@ namespace GridGeneration
         private GameObject[,] gameObjectMap;
         private bool[,] protectedTileMap;
         private int placementTries = 1000;
-        private const int maxVillages = 4, minVillages = 1;
+        private const int maxVillages = 5, minVillages = 3;
         private float landNoiseMin;
         private float landNoiseMax;
         private float[] nonGrassVariantThresholds;

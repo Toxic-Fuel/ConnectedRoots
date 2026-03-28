@@ -809,6 +809,11 @@ public class TileBuildContextPanel : MonoBehaviour
         }
 
         placedCollectorBuildings.Add(currentCoordinate);
+        if (tileBuilding != null)
+        {
+            tileBuilding.NotifyRoadPlacementChanged();
+        }
+
         if (selectTile != null)
         {
             selectTile.ClearSelection();
@@ -874,6 +879,11 @@ public class TileBuildContextPanel : MonoBehaviour
         }
 
         placedCollectorBuildings.Add(currentCoordinate);
+        if (tileBuilding != null)
+        {
+            tileBuilding.NotifyRoadPlacementChanged();
+        }
+
         if (selectTile != null)
         {
             selectTile.ClearSelection();
