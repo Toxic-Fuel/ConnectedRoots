@@ -126,11 +126,8 @@ MonoBehaviour:
     from the lumber it produces.
   turns: {fileID: 0}
   completionAudioSource: {fileID: 1280230794449547589}
-  rewardWoodPerTurn: 2
-  rewardStonePerTurn: 0
-  woodCost: 3
-  stoneCost: 1
-  turnCost: 0
+  rewardResources: 000000000200000000000000
+  resourceCosts: 000000000300000001000000
 --- !u!82 &1280230794449547589
 AudioSource:
   m_ObjectHideFlags: 0

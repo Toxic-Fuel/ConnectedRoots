@@ -4,15 +4,8 @@ using UnityEngine.InputSystem;
 
 public class RecourseCollectorBuilding : MonoBehaviour
 {
-    public enum BuildingType
-    {
-        Sawmill,
-        Mine1,
-        Mine2
-    }
-
     [SerializeField] private GridMap gridMap;
-    [SerializeField] private BuildingType selectedBuilding = BuildingType.Sawmill;
+    [SerializeField] private Building selectedBuilding = Building.Sawmill;
 
     private Keyboard keyboard;
     private bool mineModeSelected;
@@ -43,18 +36,18 @@ public class RecourseCollectorBuilding : MonoBehaviour
         {
             if (keyboard.digit1Key.wasPressedThisFrame)
             {
-                SelectBuilding(BuildingType.Mine1);
+                SelectBuilding(Building.ValleyMine);
             }
             else if (keyboard.digit2Key.wasPressedThisFrame)
             {
-                SelectBuilding(BuildingType.Mine2);
+                SelectBuilding(Building.MountainMine);
             }
         }
         else
         {
             if (keyboard.digit1Key.wasPressedThisFrame)
             {
-                SelectBuilding(BuildingType.Sawmill);
+                SelectBuilding(Building.Sawmill);
             }
         }
     }
@@ -65,11 +58,11 @@ public class RecourseCollectorBuilding : MonoBehaviour
 
         if (mineModeSelected)
         {
-            SelectBuilding(BuildingType.Mine1);
+            SelectBuilding(Building.ValleyMine);
         }
         else
         {
-            SelectBuilding(BuildingType.Sawmill);
+            SelectBuilding(Building.Sawmill);
         }
     }
 
@@ -78,7 +71,7 @@ public class RecourseCollectorBuilding : MonoBehaviour
         return CanPlaceBuilding(selectedBuilding, coordinate);
     }
 
-    public bool CanPlaceBuilding(BuildingType buildingType, Vector2Int coordinate)
+    public bool CanPlaceBuilding(Building buildingType, Vector2Int coordinate)
     {
         if (gridMap == null || !gridMap.IsInsideGrid(coordinate))
         {
@@ -93,13 +86,13 @@ public class RecourseCollectorBuilding : MonoBehaviour
 
         switch (buildingType)
         {
-            case BuildingType.Sawmill:
+            case Building.Sawmill:
                 return HasExactTileName(tile, "Forest");
 
-            case BuildingType.Mine1:
+            case Building.ValleyMine:
                 return HasExactTileName(tile, "Valley");
 
-            case BuildingType.Mine2:
+            case Building.MountainMine:
                 return HasExactTileName(tile, "Obstacle1");
 
             default:
@@ -114,7 +107,7 @@ public class RecourseCollectorBuilding : MonoBehaviour
             && string.Equals(tile.tileName, expectedName, System.StringComparison.OrdinalIgnoreCase);
     }
 
-    private void SelectBuilding(BuildingType buildingType)
+    private void SelectBuilding(Building buildingType)
     {
         selectedBuilding = buildingType;
     }

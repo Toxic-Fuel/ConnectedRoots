@@ -125,11 +125,8 @@ MonoBehaviour:
     I'll supply you with <b> 1 Stone /t </b> in return
   turns: {fileID: 0}
   completionAudioSource: {fileID: 2028781651087038916}
-  rewardWoodPerTurn: 0
-  rewardStonePerTurn: 1
-  woodCost: 2
-  stoneCost: 0
-  turnCost: 0
+  rewardResources: 000000000000000001000000
+  resourceCosts: 000000000200000000000000
 --- !u!82 &2028781651087038916
 AudioSource:
   m_ObjectHideFlags: 0

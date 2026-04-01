@@ -8,12 +8,10 @@ using QuestSystem;
 
 public class TileBuildContextPanel : MonoBehaviour
 {
-    private enum BuildOption
+    [System.Serializable]
+    private sealed class IntArrayRow
     {
-        None,
-        Road,
-        Sawmill,
-        StoneMine
+        public int[] values;
     }
 
     [Header("References")]
@@ -45,28 +43,22 @@ public class TileBuildContextPanel : MonoBehaviour
     [SerializeField] private Color selectedButtonColor = new Color(0.82f, 0.82f, 0.62f, 1f);
 
     [Header("Build Costs")]
-    [SerializeField, Min(0)] private int roadWoodCost = 1;
-    [SerializeField, Min(0)] private int roadStoneCost = 1;
-    [SerializeField, Min(0)] private int sawmillWoodCost = 2;
-    [SerializeField, Min(0)] private int sawmillStoneCost = 2;
-    [SerializeField, Min(0)] private int stoneMineWoodCost = 5;
-    [SerializeField, Min(0)] private int stoneMineStoneCost = 4;
+    [SerializeField] private IntArrayRow[] buildingCostRows;
 
     [Header("Build Turn Costs")]
-    [SerializeField, Min(0)] private int roadTurnCost = 1;
-    [SerializeField, Min(0)] private int stoneMineMineTurnCost = 1;
-    [SerializeField, Min(0)] private int sawmillTurnCost = 1;
+    [SerializeField] private int[] buildingTurnCost;
 
     [Header("Collector Income Per Turn")]
-    [SerializeField, Min(0)] private int sawmillWoodPerTurn = 1;
-    [SerializeField, Min(0)] private int sawmillStonePerTurn = 0;
-    [SerializeField, Min(0)] private int stoneMineWoodPerTurn = 0;
-    [SerializeField, Min(0)] private int stoneMineStonePerTurn = 1;
+    [SerializeField] private IntArrayRow[] buildingResourcePerTurnRows;
+
+    // Runtime arrays used by build logic.
+    private int[][] buildingCost;
+    private int[][] buildingResourcePerTurn;
+
 
     [Header("Building Prefabs")]
-    [SerializeField] private GameObject sawmillForestPrefab;
-    [SerializeField] private GameObject stoneMineMountainPrefab;
-    [SerializeField] private GameObject stoneMineStoneValleyPrefab;
+    [SerializeField] private GameObject[] buildingsPrefab;
+
 
     [Header("Transitions")]
     [SerializeField, Min(0f)] private float tileSwitchHideDuration = 0.06f;
@@ -83,7 +75,7 @@ public class TileBuildContextPanel : MonoBehaviour
     private float hideUntilTime;
     private bool useCanvasGroupVisibility;
     private CanvasGroup panelCanvasGroup;
-    private BuildOption selectedOption = BuildOption.None;
+    private Building selectedOption = Building.None;
     private bool canBuildRoadOption;
     private bool canBuildSawmillOption;
     private bool canBuildStoneMineOption;
@@ -92,6 +84,8 @@ public class TileBuildContextPanel : MonoBehaviour
 
     private void Awake()
     {
+        SyncBuildDataFromInspector();
+
         if (tileBuilding == null)
         {
             tileBuilding = FindAnyObjectByType<TileBuilding>();
@@ -124,17 +118,17 @@ public class TileBuildContextPanel : MonoBehaviour
 
         if (buildRoadButton != null)
         {
-            buildRoadButton.onClick.AddListener(() => OnBuildOptionSelected(BuildOption.Road));
+            buildRoadButton.onClick.AddListener(() => SelectBuildOption(Building.Road));
         }
 
         if (buildSawmillButton != null)
         {
-            buildSawmillButton.onClick.AddListener(() => OnBuildOptionSelected(BuildOption.Sawmill));
+            buildSawmillButton.onClick.AddListener(() => SelectBuildOption(Building.Sawmill));
         }
 
         if (buildStoneMineButton != null)
         {
-            buildStoneMineButton.onClick.AddListener(() => OnBuildOptionSelected(BuildOption.StoneMine));
+            buildStoneMineButton.onClick.AddListener(() => SelectBuildOption(Building.ValleyMine));
         }
 
         if (confirmBuildButton != null)
@@ -185,6 +179,35 @@ public class TileBuildContextPanel : MonoBehaviour
         }
     }
 
+    private void OnValidate()
+    {
+        SyncBuildDataFromInspector();
+    }
+
+    private void SyncBuildDataFromInspector()
+    {
+        buildingCost = ConvertRowsToJagged(buildingCostRows);
+        buildingResourcePerTurn = ConvertRowsToJagged(buildingResourcePerTurnRows);
+    }
+
+    private static int[][] ConvertRowsToJagged(IntArrayRow[] rows)
+    {
+        if (rows == null)
+        {
+            return new int[0][];
+        }
+
+        int[][] result = new int[rows.Length][];
+        for (int i = 0; i < rows.Length; i++)
+        {
+            int[] source = rows[i] != null && rows[i].values != null ? rows[i].values : new int[0];
+            result[i] = new int[source.Length];
+            System.Array.Copy(source, result[i], source.Length);
+        }
+
+        return result;
+    }
+
     private void Update()
     {
         if (tileBuilding == null || gridMap == null || panelRoot == null)
@@ -197,10 +220,10 @@ public class TileBuildContextPanel : MonoBehaviour
         if (selectTile == null || !selectTile.HasSelection)
         {
             lastCoordinate = new Vector2Int(-1, -1);
-            selectedOption = BuildOption.None;
+            selectedOption = Building.None;
             currentQuest = null;
             UpdateSelectionVisuals();
-            UpdateCostTexts(0, 0);
+            //UpdateCostTexts(0, 0);
             SetPanelVisible(false);
             SetQuestPanelVisible(false);
             return;
@@ -329,13 +352,13 @@ public class TileBuildContextPanel : MonoBehaviour
     {
         if (tileChanged)
         {
-            selectedOption = BuildOption.None;
+            selectedOption = Building.None;
         }
 
-        bool selectedInvalid = selectedOption != BuildOption.None && !IsSelectedOptionCurrentlyBuildable();
+        bool selectedInvalid = selectedOption != Building.None && !IsSelectedOptionCurrentlyBuildable();
         if (selectedInvalid)
         {
-            selectedOption = BuildOption.None;
+            selectedOption = Building.None;
         }
 
         UpdateSelectionVisuals();
@@ -347,7 +370,7 @@ public class TileBuildContextPanel : MonoBehaviour
         }
     }
 
-    private void OnBuildOptionSelected(BuildOption option)
+    public void SelectBuildOption(Building option)
     {
         if (!IsOptionBuildable(option))
         {
@@ -359,7 +382,7 @@ public class TileBuildContextPanel : MonoBehaviour
 
         if (gridMap == null || currentCoordinate.x < 0 || currentCoordinate.y < 0)
         {
-            UpdateCostTexts(0, 0);
+            //UpdateCostTexts({0, 0});
             return;
         }
 
@@ -374,20 +397,20 @@ public class TileBuildContextPanel : MonoBehaviour
 
     public void SelectBuildOptionByIndex(int optionIndex)
     {
-        BuildOption option = optionIndex switch
+        Building option = optionIndex switch
         {
-            0 => BuildOption.Road,
-            1 => BuildOption.Sawmill,
-            2 => BuildOption.StoneMine,
-            _ => BuildOption.None
+            0 => Building.Road,
+            1 => Building.Sawmill,
+            2 => Building.ValleyMine,
+            _ => Building.None
         };
 
-        if (option == BuildOption.None)
+        if (option == Building.None)
         {
             return;
         }
 
-        OnBuildOptionSelected(option);
+        SelectBuildOption(option);
     }
 
     public void ConfirmSelectedBuild()
@@ -395,40 +418,62 @@ public class TileBuildContextPanel : MonoBehaviour
         TryConfirmSelectedBuild();
     }
 
-    public int GetRoadWoodCost() => roadWoodCost;
-    public int GetRoadStoneCost() => roadStoneCost;
-    public int GetRoadTurnCost() => roadTurnCost;
+    public int[][] GetBuildingResourceCost() => buildingCost;
+    
     public bool HasCollectorBuildingAt(Vector2Int coordinate) => placedCollectorBuildings.Contains(coordinate);
+
+    public void GetBuildingActionAndTurnCost(Building building, out int actionCost, out int turnCost)
+    {
+        actionCost = 1;
+        turnCost = 1;
+
+        if (buildingTurnCost == null)
+        {
+            return;
+        }
+
+        int index = (int)building;
+        if (index >= 0 && index < buildingTurnCost.Length)
+        {
+            actionCost = Mathf.Max(0, buildingTurnCost[index]);
+        }
+
+        // Old turn-system behavior: build action cost also counts as turn cost.
+        turnCost = actionCost;
+    }
 
     private void UpdateCostPreviewForSelection(GridTile tile, Vector2Int coordinate)
     {
-        int woodCost = 0;
-        int stoneCost = 0;
+        int[] cost = new int[turns != null ? turns.resourceTypesCount : 0];
 
         switch (selectedOption)
         {
-            case BuildOption.Road:
-                TryGetRoadCost(tile, coordinate, out woodCost, out stoneCost);
+            case Building.Road:
+                if (!TryGetRoadCost(tile, coordinate, out cost))
+                {
+                    cost = new int[turns != null ? turns.resourceTypesCount : 0];
+                }
                 break;
-
-            case BuildOption.Sawmill:
-                woodCost = sawmillWoodCost;
-                stoneCost = sawmillStoneCost;
+            case Building.Sawmill:
+                cost = GetBuildingCost(Building.Sawmill);
                 break;
-
-            case BuildOption.StoneMine:
-                woodCost = stoneMineWoodCost;
-                stoneCost = stoneMineStoneCost;
+            case Building.MountainMine:
+            case Building.ValleyMine:
+                if (TryResolveMineBuildingForCoordinate(coordinate, out Building mineBuilding))
+                {
+                    cost = GetBuildingCost(mineBuilding);
+                }
+                break;
+            default:
                 break;
         }
 
-        UpdateCostTexts(woodCost, stoneCost);
+        UpdateCostTexts(cost);
     }
 
-    private bool TryGetRoadCost(GridTile tile, Vector2Int coordinate, out int woodCost, out int stoneCost)
+    private bool TryGetRoadCost(GridTile tile, Vector2Int coordinate, out int[] cost)
     {
-        woodCost = 0;
-        stoneCost = 0;
+        cost = new int[turns.resourceTypesCount];
 
         if (tileBuilding == null || tile == null)
         {
@@ -440,27 +485,27 @@ public class TileBuildContextPanel : MonoBehaviour
             return false;
         }
 
-        return TryGetRoadCostByTile(tile, out woodCost, out stoneCost);
+        return TryGetRoadCostByTile(tile, out cost);
     }
 
-    private void UpdateCostTexts(int woodCost, int stoneCost)
+    private void UpdateCostTexts(int[] cost)
     {
-        if (woodCostText != null)
+        if (woodCostText != null && cost.Length > 0)
         {
-            woodCostText.text = woodCost.ToString("00");
+            woodCostText.text = cost[0].ToString();
         }
 
-        if (stoneCostText != null)
+        if (stoneCostText != null && cost.Length > 1)
         {
-            stoneCostText.text = stoneCost.ToString("00");
+            stoneCostText.text = cost[1].ToString();
         }
     }
 
     private void UpdateSelectionVisuals()
     {
-        ApplyButtonState(buildRoadButton, selectedOption == BuildOption.Road);
-        ApplyButtonState(buildSawmillButton, selectedOption == BuildOption.Sawmill);
-        ApplyButtonState(buildStoneMineButton, selectedOption == BuildOption.StoneMine);
+        ApplyButtonState(buildRoadButton, selectedOption == Building.Road);
+        ApplyButtonState(buildSawmillButton, selectedOption == Building.Sawmill);
+        ApplyButtonState(buildStoneMineButton, selectedOption == Building.MountainMine || selectedOption == Building.ValleyMine);
     }
 
     private void ApplyButtonState(Button button, bool isSelected)
@@ -483,13 +528,14 @@ public class TileBuildContextPanel : MonoBehaviour
         return IsOptionBuildable(selectedOption);
     }
 
-    private bool IsOptionBuildable(BuildOption option)
+    private bool IsOptionBuildable(Building option)
     {
         return option switch
         {
-            BuildOption.Road => canBuildRoadOption,
-            BuildOption.Sawmill => canBuildSawmillOption,
-            BuildOption.StoneMine => canBuildStoneMineOption,
+            Building.Road => canBuildRoadOption,
+            Building.Sawmill => canBuildSawmillOption,
+            Building.MountainMine => canBuildStoneMineOption,
+            Building.ValleyMine => canBuildStoneMineOption,
             _ => false
         };
     }
@@ -511,20 +557,81 @@ public class TileBuildContextPanel : MonoBehaviour
             return;
         }
 
-        switch (selectedOption)
+        if (TryResolveSelectedBuilding(out Building building))
         {
-            case BuildOption.Road:
-                OnBuildRoadPressed();
-                break;
+            OnBuildingBuilt((int)building);
+        }
+    }
 
-            case BuildOption.Sawmill:
-                OnBuildSawmillPressed();
-                break;
+    public void OnBuildingBuilt(int buildingId)
+    {
+        if (currentCoordinate.x < 0 || currentCoordinate.y < 0)
+        {
+            return;
+        }
 
-            case BuildOption.StoneMine:
-                OnBuildStoneMinePressed();
+        if (!System.Enum.IsDefined(typeof(Building), buildingId))
+        {
+            Debug.LogWarning($"Unknown building id '{buildingId}'.", this);
+            return;
+        }
+
+        Building building = (Building)buildingId;
+        switch (building)
+        {
+            case Building.Road:
+                BuildRoad();
+                break;
+            case Building.Sawmill:
+            case Building.MountainMine:
+            case Building.ValleyMine:
+                TryBuildCollectorBuilding(building);
                 break;
         }
+    }
+
+    private bool TryResolveSelectedBuilding(out Building building)
+    {
+        building = Building.Road;
+
+        switch (selectedOption)
+        {
+            case Building.Road:
+                building = Building.Road;
+                return true;
+            case Building.Sawmill:
+                building = Building.Sawmill;
+                return true;
+            case Building.MountainMine:
+            case Building.ValleyMine:
+                return TryResolveMineBuildingForCoordinate(currentCoordinate, out building);
+            default:
+                return false;
+        }
+    }
+
+    private bool TryResolveMineBuildingForCoordinate(Vector2Int coordinate, out Building building)
+    {
+        building = Building.ValleyMine;
+        GridTile tile = gridMap != null ? gridMap.GetTileAt(coordinate.x, coordinate.y) : null;
+        if (tile == null)
+        {
+            return false;
+        }
+
+        if (IsMountainMineTile(tile))
+        {
+            building = Building.MountainMine;
+            return true;
+        }
+
+        if (IsValleyTile(tile))
+        {
+            building = Building.ValleyMine;
+            return true;
+        }
+
+        return false;
     }
 
     private void UpdatePanelPositionAtSelection(Vector3 worldPosition, RectTransform targetPanel)
@@ -702,10 +809,9 @@ public class TileBuildContextPanel : MonoBehaviour
     {
         return HasExactTileName(tile, "Obstacle1");
     }
-    private bool TryGetRoadCostByTile(GridTile tile, out int woodCost, out int stoneCost)
+    private bool TryGetRoadCostByTile(GridTile tile, out int[] cost)
     {
-        woodCost = roadWoodCost;
-        stoneCost = roadStoneCost;
+        cost = new int[turns.resourceTypesCount];
 
         if (tile == null)
         {
@@ -752,7 +858,7 @@ public class TileBuildContextPanel : MonoBehaviour
         }
     }
 
-    private void OnBuildRoadPressed()
+    private void BuildRoad()
     {
         if (currentCoordinate.x < 0 || currentCoordinate.y < 0)
         {
@@ -765,117 +871,54 @@ public class TileBuildContextPanel : MonoBehaviour
         }
     }
 
-    private void OnBuildSawmillPressed()
+    private bool TryBuildCollectorBuilding(Building building)
     {
         if (currentCoordinate.x < 0 || currentCoordinate.y < 0)
         {
-            return;
-        }
-
-        GridTile tile = gridMap != null ? gridMap.GetTileAt(currentCoordinate.x, currentCoordinate.y) : null;
-        if (tile == null || !IsForestTile(tile))
-        {
-            Debug.LogWarning($"Sawmill build blocked: tile must be 'Forest' but was '{tile?.tileName ?? "null"}'.", this);
-            return;
-        }
-
-        if (placedCollectorBuildings.Contains(currentCoordinate)
-            || (tileBuilding != null && tileBuilding.IsRoadAlreadyBuilt(currentCoordinate)))
-        {
-            Debug.LogWarning("Sawmill build blocked: tile already has a building.", this);
-            return;
-        }
-
-        if (sawmillForestPrefab == null)
-        {
-            Debug.LogWarning("Sawmill prefab for Forest is not assigned.", this);
-            return;
-        }
-
-        if (!TrySpendBuildActionAndResources(sawmillWoodCost, sawmillStoneCost, sawmillTurnCost, "sawmill"))
-        {
-            return;
-        }
-
-        if (!gridMap.TryReplaceTileVisualAt(currentCoordinate.x, currentCoordinate.y, sawmillForestPrefab, Quaternion.identity))
-        {
-            Debug.LogWarning("Sawmill build failed: could not replace tile visual.", this);
-            return;
-        }
-
-        if (turns != null)
-        {
-            turns.AddPerTurnResources(sawmillWoodPerTurn, sawmillStonePerTurn);
-        }
-
-        placedCollectorBuildings.Add(currentCoordinate);
-        if (tileBuilding != null)
-        {
-            tileBuilding.NotifyRoadPlacementChanged();
-        }
-
-        if (selectTile != null)
-        {
-            selectTile.ClearSelection();
-        }
-    }
-
-    private void OnBuildStoneMinePressed()
-    {
-        if (currentCoordinate.x < 0 || currentCoordinate.y < 0)
-        {
-            return;
+            return false;
         }
 
         GridTile tile = gridMap != null ? gridMap.GetTileAt(currentCoordinate.x, currentCoordinate.y) : null;
         if (tile == null)
         {
-            Debug.LogWarning("Stone mine build blocked: tile data is missing.", this);
-            return;
+            Debug.LogWarning($"{building} build blocked: tile data is missing.", this);
+            return false;
+        }
+
+        if (!IsTileValidForBuilding(building, tile))
+        {
+            Debug.LogWarning($"{building} build blocked: tile '{tile.tileName}' is invalid for this building.", this);
+            return false;
         }
 
         if (placedCollectorBuildings.Contains(currentCoordinate)
             || (tileBuilding != null && tileBuilding.IsRoadAlreadyBuilt(currentCoordinate)))
         {
-            Debug.LogWarning("Stone mine build blocked: tile already has a building.", this);
-            return;
+            Debug.LogWarning($"{building} build blocked: tile already has a building.", this);
+            return false;
         }
 
-        GameObject targetPrefab = null;
-        if (IsValleyTile(tile))
-        {
-            targetPrefab = stoneMineStoneValleyPrefab;
-        }
-        else if (IsMountainMineTile(tile))
-        {
-            targetPrefab = stoneMineMountainPrefab;
-        }
-        else
-        {
-            Debug.LogWarning($"Stone mine build blocked: tile must be 'Valley' or 'Obstacle1' but was '{tile.tileName}'.", this);
-            return;
-        }
-
+        GameObject targetPrefab = GetBuildingPrefab(building);
         if (targetPrefab == null)
         {
-            Debug.LogWarning("Stone mine prefab is missing for this tile type.", this);
-            return;
+            Debug.LogWarning($"{building} prefab is missing.", this);
+            return false;
         }
 
-        if (!TrySpendBuildActionAndResources(stoneMineWoodCost, stoneMineStoneCost, stoneMineMineTurnCost, "stone mine"))
+        if (!TrySpendBuildActionAndResources(building, GetBuildingCost(building), building.ToString()))
         {
-            return;
+            return false;
         }
 
         if (!gridMap.TryReplaceTileVisualAt(currentCoordinate.x, currentCoordinate.y, targetPrefab, Quaternion.identity))
         {
-            Debug.LogWarning("Stone mine build failed: could not replace tile visual.", this);
-            return;
+            Debug.LogWarning($"{building} build failed: could not replace tile visual.", this);
+            return false;
         }
 
         if (turns != null)
         {
-            turns.AddPerTurnResources(stoneMineWoodPerTurn, stoneMineStonePerTurn);
+            turns.AddPerTurnResources(GetBuildingPerTurnIncome(building));
         }
 
         placedCollectorBuildings.Add(currentCoordinate);
@@ -888,34 +931,124 @@ public class TileBuildContextPanel : MonoBehaviour
         {
             selectTile.ClearSelection();
         }
+
+        return true;
     }
 
-    private bool TrySpendBuildActionAndResources(int woodCost, int stoneCost, int turnCost, string buildLabel)
+    private bool IsTileValidForBuilding(Building building, GridTile tile)
+    {
+        switch (building)
+        {
+            case Building.Sawmill:
+                return IsForestTile(tile);
+            case Building.MountainMine:
+                return IsMountainMineTile(tile);
+            case Building.ValleyMine:
+                return IsValleyTile(tile);
+            default:
+                return false;
+        }
+    }
+
+    private GameObject GetBuildingPrefab(Building building)
+    {
+        int index = (int)building;
+        if (buildingsPrefab != null && index >= 0 && index < buildingsPrefab.Length)
+        {
+            return buildingsPrefab[index];
+        }
+
+        // Backward compatibility for older setups where both mines shared index 2.
+        if ((building == Building.MountainMine || building == Building.ValleyMine)
+            && buildingsPrefab != null
+            && buildingsPrefab.Length > 2)
+        {
+            return buildingsPrefab[2];
+        }
+
+        return null;
+    }
+
+    private int[] GetBuildingCost(Building building)
+    {
+        return GetBuildingDataRow(buildingCost, building);
+    }
+
+    private int[] GetBuildingPerTurnIncome(Building building)
+    {
+        return GetBuildingDataRow(buildingResourcePerTurn, building);
+    }
+
+    private int[] GetBuildingDataRow(int[][] source, Building building)
+    {
+        int fallbackLength = turns != null ? turns.resourceTypesCount : 0;
+        if (source == null)
+        {
+            return new int[fallbackLength];
+        }
+
+        int index = (int)building;
+        if (index >= 0 && index < source.Length && source[index] != null)
+        {
+            return source[index];
+        }
+
+        // Backward compatibility for older setups where both mines shared index 2.
+        if ((building == Building.MountainMine || building == Building.ValleyMine)
+            && source.Length > 2
+            && source[2] != null)
+        {
+            return source[2];
+        }
+
+        return new int[fallbackLength];
+    }
+
+    private bool TrySpendBuildActionAndResources(Building building, int[] cost, string buildLabel)
     {
         if (turns == null)
         {
             return true;
         }
 
-        if (!turns.CanTakeAction)
+        GetBuildingActionAndTurnCost(building, out int actionCost, out int turnCost);
+
+        if (!turns.CanAffordResources(cost))
+        {
+            Debug.LogWarning($"Cannot build {buildLabel}: not enough resources.", this);
+            return false;
+        }
+
+        if (actionCost > 0 && (!turns.CanTakeAction || turns.ActionsRemaining < actionCost))
         {
             Debug.LogWarning($"Cannot build {buildLabel}: no actions left this turn.", this);
             return false;
         }
 
-        if (!turns.CanAffordResources(woodCost, stoneCost))
+        if (turnCost > 0 && !turns.CanAffordTurns(turnCost))
         {
-            Debug.LogWarning($"Not enough resources for {buildLabel}. Need W{woodCost} S{stoneCost}.", this);
+            Debug.LogWarning($"Cannot build {buildLabel}: not enough turns available.", this);
             return false;
         }
 
-        if (!turns.TrySpendAction(turnCost))
+        int turnsBeforeActionSpend = turns.RemainingTurns;
+
+        if (actionCost > 0 && !turns.TrySpendAction(actionCost))
         {
-            Debug.LogWarning($"Cannot build {buildLabel}: failed to spend {turnCost} action(s).", this);
+            Debug.LogWarning($"Cannot build {buildLabel}: failed to spend {actionCost} action(s).", this);
             return false;
         }
 
-        if (!turns.TrySpendResources(woodCost, stoneCost))
+        int turnsSpentByAction = Mathf.Max(0, turnsBeforeActionSpend - turns.RemainingTurns);
+        int remainingTurnCost = Mathf.Max(0, turnCost - turnsSpentByAction);
+
+        if (remainingTurnCost > 0 && !turns.TrySpendTurns(remainingTurnCost))
+        {
+            Debug.LogWarning($"Cannot build {buildLabel}: failed to spend {remainingTurnCost} turn(s).", this);
+            return false;
+        }
+
+        if (!turns.TrySpendResources(cost))
         {
             Debug.LogWarning($"Cannot build {buildLabel}: failed to spend resources.", this);
             return false;

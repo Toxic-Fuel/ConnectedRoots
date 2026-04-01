@@ -33,13 +33,16 @@ public class InteractionUI : MonoBehaviour
         }
 
         SetupButtons();
-        buildCosts = new int[3][]
-        {
-            new int[] { 0, 1 },
-            new int[] { 2, 2 },
-            new int[] { 5, 4 }
-        };
+        RefreshBuildCostsFromContext();
 
+    }
+
+    private void RefreshBuildCostsFromContext()
+    {
+        if (tileBuildContextPanel != null)
+        {
+            buildCosts = tileBuildContextPanel.GetBuildingResourceCost();
+        }
     }
 
     private void SetupButtons()
@@ -70,6 +73,8 @@ public class InteractionUI : MonoBehaviour
 
     public void OnButtonPressed(int pressedButton)
     {
+        RefreshBuildCostsFromContext();
+
         if (pressedButton < 0 || pressedButton >= buildButtons.Length)
         {
             Debug.LogError($"InteractionUI: Invalid button index {pressedButton}.", this);
@@ -98,8 +103,8 @@ public class InteractionUI : MonoBehaviour
         ApplyButtonState(pressedButton, isSelected: true);
 
         // Update cost texts
-        int woodCost = buildCosts[pressedButton][0];
-        int stoneCost = buildCosts[pressedButton][1];
+        int woodCost = GetCostOrZero(pressedButton, (int)ResourceType.Wood);
+        int stoneCost = GetCostOrZero(pressedButton, (int)ResourceType.Stone);
 
         if (woodCostText != null)
         {
@@ -115,12 +120,14 @@ public class InteractionUI : MonoBehaviour
 
         if (tileBuildContextPanel != null)
         {
-            tileBuildContextPanel.SelectBuildOptionByIndex(pressedButton);
+            tileBuildContextPanel.SelectBuildOption(MapButtonIndexToBuilding(pressedButton));
         }
     }
 
     public void OnConfirmed()
     {
+        RefreshBuildCostsFromContext();
+
         if (_selectedButtonIndex < 0)
         {
             Debug.LogWarning("InteractionUI: No build option selected.", this);
@@ -135,7 +142,7 @@ public class InteractionUI : MonoBehaviour
 
         if (tileBuildContextPanel != null)
         {
-            tileBuildContextPanel.SelectBuildOptionByIndex(_selectedButtonIndex);
+            tileBuildContextPanel.SelectBuildOption(MapButtonIndexToBuilding(_selectedButtonIndex));
             tileBuildContextPanel.ConfirmSelectedBuild();
             return;
         }
@@ -173,5 +180,35 @@ public class InteractionUI : MonoBehaviour
         }
 
         return color;
+    }
+
+    private int GetCostOrZero(int buildIndex, int resourceIndex)
+    {
+        Building building = MapButtonIndexToBuilding(buildIndex);
+        int buildingIndex = (int)building;
+
+        if (building == Building.None || buildCosts == null || buildingIndex < 0 || buildingIndex >= buildCosts.Length)
+        {
+            return 0;
+        }
+
+        int[] row = buildCosts[buildingIndex];
+        if (row == null || resourceIndex < 0 || resourceIndex >= row.Length)
+        {
+            return 0;
+        }
+
+        return row[resourceIndex];
+    }
+
+    private static Building MapButtonIndexToBuilding(int buttonIndex)
+    {
+        return buttonIndex switch
+        {
+            0 => Building.Road,
+            1 => Building.Sawmill,
+            2 => Building.ValleyMine,
+            _ => Building.None
+        };
     }
 }

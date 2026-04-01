@@ -126,11 +126,8 @@ MonoBehaviour:
     / t</b>." '
   turns: {fileID: 0}
   completionAudioSource: {fileID: -5051249602604546460}
-  rewardWoodPerTurn: 2
-  rewardStonePerTurn: 0
-  woodCost: 0
-  stoneCost: 0
-  turnCost: 3
+  rewardResources: 000000000200000000000000
+  resourceCosts: 030000000000000000000000
 --- !u!82 &-5051249602604546460
 AudioSource:
   m_ObjectHideFlags: 0

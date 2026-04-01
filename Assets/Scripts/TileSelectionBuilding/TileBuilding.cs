@@ -125,7 +125,7 @@ public class TileBuilding : MonoBehaviour
             return false;
         }
 
-        if (!CanBuildOnTile(coordinate, out _, out _))
+        if (!CanBuildOnTile(coordinate, out _))
         {
             return false;
         }
@@ -276,7 +276,7 @@ public class TileBuilding : MonoBehaviour
             return false;
         }
 
-        if (!CanBuildOnTile(tileCoordinate, out int woodCost, out int stoneCost))
+        if (!CanBuildOnTile(tileCoordinate, out int[] cost))
         {
             return false;
         }
@@ -292,23 +292,37 @@ public class TileBuilding : MonoBehaviour
                 return false;
             }
 
-            if (!turns.CanAffordResources(woodCost, stoneCost))
+            if (!turns.CanAffordResources(cost))
             {
-                Debug.Log($"Not enough resources. Need Wood {woodCost}, Stone {stoneCost}.");
+                Debug.Log($"Not enough resources.");
                 return false;
             }
 
-            int roadTurnCost = tileBuildContextPanel != null ? tileBuildContextPanel.GetRoadTurnCost() : 1;
-            if (!turns.TrySpendAction(roadTurnCost))
+            int roadActionCost = 1;
+            if (tileBuildContextPanel != null)
+            {
+                tileBuildContextPanel.GetBuildingActionAndTurnCost(Building.Road, out roadActionCost, out _);
+            }
+
+            if (roadActionCost > 0 && (!turns.CanTakeAction || turns.ActionsRemaining < roadActionCost))
             {
                 if (enableDebugLogs)
                 {
-                    Debug.Log($"Build blocked: TrySpendAction({roadTurnCost}) failed.", this);
+                    Debug.Log($"Build blocked: not enough actions ({roadActionCost} required).", this);
                 }
                 return false;
             }
 
-            if (!turns.TrySpendResources(woodCost, stoneCost))
+            if (roadActionCost > 0 && !turns.TrySpendAction(roadActionCost))
+            {
+                if (enableDebugLogs)
+                {
+                    Debug.Log($"Build blocked: TrySpendAction({roadActionCost}) failed.", this);
+                }
+                return false;
+            }
+
+            if (!turns.TrySpendResources(cost))
             {
                 if (enableDebugLogs)
                 {
@@ -351,7 +365,7 @@ public class TileBuilding : MonoBehaviour
         RoadPlaced?.Invoke();
 
         SpawnBuildEffectAt(tileCoordinate);
-        Debug.Log($"Built road at ({tileCoordinate.x}, {tileCoordinate.y}) | Cost: W{woodCost} S{stoneCost}");
+        //Debug.Log($"Built road at ({tileCoordinate.x}, {tileCoordinate.y}) | Cost: W{woodCost} S{stoneCost}");
         ClearHoveredTile();
         return true;
     }
@@ -376,10 +390,9 @@ public class TileBuilding : MonoBehaviour
         return gridMap.TryWorldToGridCoordinate(worldPoint, out coordinate);
     }
 
-    private bool CanBuildOnTile(Vector2Int coordinate, out int woodCost, out int stoneCost)
+    private bool CanBuildOnTile(Vector2Int coordinate, out int[] cost)
     {
-        woodCost = 0;
-        stoneCost = 0;
+        cost = new int[turns.resourceTypesCount];
 
         if (builtRoads.Contains(coordinate))
         {
@@ -392,7 +405,7 @@ public class TileBuilding : MonoBehaviour
             return false;
         }
 
-        return TryGetRoadCostByTile(tile, out woodCost, out stoneCost);
+        return TryGetRoadCostByTile(tile, out cost);
     }
 
     private bool RebuildRoadVisualAt(Vector2Int coordinate)
@@ -694,17 +707,26 @@ public class TileBuilding : MonoBehaviour
 
         return false;
     }
-    private bool TryGetRoadCostByTile(GridTile tile, out int woodCost, out int stoneCost)
+    private bool TryGetRoadCostByTile(GridTile tile, out int[] cost)
     {
+        int expectedLength = turns != null ? Mathf.Max(0, turns.resourceTypesCount) : 0;
+
         if (tileBuildContextPanel != null)
         {
-            woodCost = tileBuildContextPanel.GetRoadWoodCost();
-            stoneCost = tileBuildContextPanel.GetRoadStoneCost();
+            int[][] allCosts = tileBuildContextPanel.GetBuildingResourceCost();
+            if (allCosts != null && allCosts.Length > 0 && allCosts[0] != null)
+            {
+                cost = NormalizeCostLength(allCosts[0], expectedLength);
+            }
+            else
+            {
+                cost = NormalizeCostLength(new[] { 1, 1 }, expectedLength);
+            }
         }
         else
         {
-            woodCost = 1;
-            stoneCost = 1;
+            cost = NormalizeCostLength(new[] { 1, 1 }, expectedLength);
+            return false;
         }
 
         if (tile == null)
@@ -719,6 +741,22 @@ public class TileBuilding : MonoBehaviour
         }
 
         return true;
+    }
+
+    private static int[] NormalizeCostLength(int[] source, int expectedLength)
+    {
+        if (expectedLength <= 0)
+        {
+            return source != null ? (int[])source.Clone() : Array.Empty<int>();
+        }
+
+        int[] normalized = new int[expectedLength];
+        if (source != null && source.Length > 0)
+        {
+            Array.Copy(source, normalized, Mathf.Min(source.Length, expectedLength));
+        }
+
+        return normalized;
     }
     private void SetHoveredTile(GameObject tileObject, Vector2Int coordinate)
     {
@@ -736,9 +774,9 @@ public class TileBuilding : MonoBehaviour
         hoveredBasePosition = GetFlatBasePosition(hoveredTile.transform.localPosition);
         hoveredCoordinate = coordinate;
 
-        if (CanBuildOnTile(coordinate, out int woodCost, out int stoneCost) && enableDebugLogs)
+        if (CanBuildOnTile(coordinate, out int[] cost) && enableDebugLogs)
         {
-            Debug.Log($"Hover tile ({coordinate.x}, {coordinate.y}) | Build cost: W{woodCost} S{stoneCost}");
+            //Debug.Log($"Hover tile ({coordinate.x}, {coordinate.y}) | Build cost: W{woodCost} S{stoneCost}");
         }
     }
 

@@ -8,8 +8,8 @@ namespace QuestSystem
         public string description;
         [SerializeField] private Turns turns;
         [SerializeField] private AudioSource completionAudioSource;
-        [SerializeField] private int rewardWoodPerTurn, rewardStonePerTurn;
-        [SerializeField] private int woodCost, stoneCost, turnCost;
+        [SerializeField] private int[] rewardResources;
+        [SerializeField] private int[] resourceCosts;
 
         private bool _isCompleted;
         public bool IsCompleted => _isCompleted;
@@ -37,13 +37,13 @@ namespace QuestSystem
                 return false;
             }
 
-            if (!turns.CanAffordResources(woodCost, stoneCost) || !turns.CanAffordTurns(turnCost))
+            if (!turns.CanAffordResources(resourceCosts) || !turns.CanAffordTurns(resourceCosts[(int)ResourceType.Turn]))
             {
                 return false;
             }
 
-            turns.TrySpendResources(woodCost, stoneCost);
-            turns.TrySpendTurns(turnCost);
+            turns.TrySpendResources(resourceCosts);
+            turns.TrySpendTurns(resourceCosts[0]);
 
             OnQuestComplete();
             return true;
@@ -62,7 +62,7 @@ namespace QuestSystem
                 return;
             }
 
-            turns.AddPerTurnResources(rewardWoodPerTurn, rewardStonePerTurn);
+            turns.AddPerTurnResources(rewardResources);
             _isCompleted = true;
 
             if (completionAudioSource != null)

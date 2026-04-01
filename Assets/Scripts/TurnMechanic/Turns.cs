@@ -12,18 +12,21 @@ public class Turns : MonoBehaviour
         Win,
         Lose
     }
-
+    
     [Header("Turn Settings")]
     [SerializeField] private int actionsPerTurn = 1;
     [SerializeField] private bool autoStartOnAwake = true;
     [SerializeField] private bool autoEndWhenOutOfActions = true;
 
+    [Header("Resources")]
+    public int resourceTypesCount = 3;
+    
     [Header("Resource Income Per Turn")]
     [SerializeField, Min(0)] private int[] resourcesPerTurn;
     
     [Header("Starting Resources")]
-    private int[] startingResources;
-    [SerializeField, Min(0)] private int[] startingResourceCount;
+    [SerializeField, Min(0)] private int[] startingResources;
+   
     [Header("Input")]
     [SerializeField] private InputActionReference endTurnAction;
 
@@ -44,8 +47,9 @@ public class Turns : MonoBehaviour
     private int _lastRewardedConnectedVillageCount;
     public int RemainingTurns { get; private set; }
     public int ActionsRemaining { get; private set; }
+    
 
-    public int[] CurrentResources
+    public int[]CurrentResources
     {
         get => _currentResources;
         set
@@ -62,14 +66,29 @@ public class Turns : MonoBehaviour
 
     public bool CanAffordResources(int[] cost)
     {
-        foreach (var resource in cost) if(resource < 0) return false;
+        if (cost == null || _currentResources == null)
+        {
+            return false;
+        }
 
-        bool[] hasResources = new bool[cost.Length];
+        if (cost.Length > _currentResources.Length)
+        {
+            return false;
+        }
+
         for (int resourceIndex = 0; resourceIndex < cost.Length; ++resourceIndex)
         {
-            hasResources[resourceIndex] = _currentResources[resourceIndex] >= cost[resourceIndex];
-            if(!hasResources[resourceIndex]) return false;
+            if (cost[resourceIndex] < 0)
+            {
+                return false;
+            }
+
+            if (_currentResources[resourceIndex] < cost[resourceIndex])
+            {
+                return false;
+            }
         }
+
         return true;
     }
 
@@ -170,6 +189,8 @@ public class Turns : MonoBehaviour
 
     private void Awake()
     {
+        ActionsRemaining = Mathf.Max(0, actionsPerTurn);
+
         if (autoStartOnAwake)
         {
             StartEncounter();
@@ -188,6 +209,8 @@ public class Turns : MonoBehaviour
 
     public void StartEncounter()
     {
+        EnsureResourceArrays();
+
         if (actionsPerTurn <= 0)
         {
             Debug.LogError("Turns: Actions per turn must be greater than 0.", this);
@@ -202,9 +225,9 @@ public class Turns : MonoBehaviour
 
         CurrentResources[(int)ResourceType.Turn] = 1;
         RemainingTurns = startingResources[(int)ResourceType.Turn];
-        for(int resourceIndex = 0; resourceIndex < startingResourceCount.Length; ++resourceIndex)
+        for(int resourceIndex = 0; resourceIndex < resourceTypesCount; ++resourceIndex)
         {
-            CurrentResources[resourceIndex] = Math.Max(0, startingResourceCount[resourceIndex]);
+            CurrentResources[resourceIndex] = Math.Max(0, startingResources[resourceIndex]);
         }
         State = TurnState.PlayerTurn;
 
@@ -215,6 +238,29 @@ public class Turns : MonoBehaviour
         BeginPlayerTurn();
     }
 
+    private void EnsureResourceArrays()
+    {
+        if (_currentResources == null || _currentResources.Length < resourceTypesCount)
+        {
+            CurrentResources = new int[resourceTypesCount];
+        }
+
+        if (startingResources == null || startingResources.Length < resourceTypesCount)
+        {
+            Array.Resize(ref startingResources, resourceTypesCount);
+        }
+
+        if (resourcesPerTurn == null || resourcesPerTurn.Length < resourceTypesCount)
+        {
+            Array.Resize(ref resourcesPerTurn, resourceTypesCount);
+        }
+
+        if (resourcePerConnectedVillage == null || resourcePerConnectedVillage.Length < resourceTypesCount)
+        {
+            Array.Resize(ref resourcePerConnectedVillage, resourceTypesCount);
+        }
+    }
+
     public bool TrySpendAction(int amount = 1)
     {
         if (State != TurnState.PlayerTurn)
@@ -222,7 +268,7 @@ public class Turns : MonoBehaviour
             return false;
         }
 
-        if (amount <= 0 || amount > ActionsRemaining)
+        if (amount < 0 || amount > ActionsRemaining)
         {
             return false;
         }
@@ -269,11 +315,11 @@ public class Turns : MonoBehaviour
     }
 
 
-    public void AddPerTurnResources(int woodBonus, int stoneBonus)
+    public void AddPerTurnResources(int[] perTurnResourcesBonus)
     {
-        for (int resourceIndex = 0; resourceIndex < resourcesPerTurn.Length; ++resourceIndex)
+        for (int resourceIndex = 0; resourceIndex < resourceTypesCount; ++resourceIndex)
         {
-            resourcesPerTurn[resourceIndex] += Mathf.Max(0, woodBonus);
+            resourcesPerTurn[resourceIndex] += Mathf.Max(0, perTurnResourcesBonus[resourceIndex]);
         }
         RefreshUI();
     }
@@ -321,8 +367,8 @@ public class Turns : MonoBehaviour
     private int[] GetVillageBonuses()
     {
         int connectedVillageCount = GetConnectedVillageCount();
-        int[] villageBonuses =  new int[CurrentResources.Length];
-        for (int resourceIndex = 0; resourceIndex < villageBonuses.Length; ++resourceIndex)
+        int[] villageBonuses =  new int[resourceTypesCount];
+        for (int resourceIndex = 0; resourceIndex < resourceTypesCount; ++resourceIndex)
         {
             villageBonuses[resourceIndex] = connectedVillageCount * Mathf.Max(0, resourcePerConnectedVillage[resourceIndex]);
         }
@@ -331,7 +377,7 @@ public class Turns : MonoBehaviour
     private void GrantTurnResources()
     {
         var villageBonuses = GetVillageBonuses();
-        for (int resourceIndex = 0; resourceIndex < CurrentResources.Length; ++resourceIndex)
+        for (int resourceIndex = 0; resourceIndex < resourceTypesCount; ++resourceIndex)
         {
             CurrentResources[resourceIndex] += Mathf.Max(0, resourcesPerTurn[resourceIndex]) + villageBonuses[resourceIndex];
         }
@@ -348,11 +394,11 @@ public class Turns : MonoBehaviour
 
         var villageBonuses = GetVillageBonuses();
         var displayedResourcePerTurn = new int[villageBonuses.Length];
-        for (int resourceIndex = 0; resourceIndex < CurrentResources.Length; ++resourceIndex)
+        for (int resourceIndex = 0; resourceIndex < resourceTypesCount; ++resourceIndex)
         {
             displayedResourcePerTurn[resourceIndex] =  Mathf.Max(0, resourcesPerTurn[resourceIndex]) + villageBonuses[resourceIndex];
         }
-        resourceTurnsUI.UpdateTexts(CurrentWood, CurrentStone, RemainingTurns, displayedWoodPerTurn, displayedStonePerTurn);
+        resourceTurnsUI.UpdateTexts(CurrentResources, displayedResourcePerTurn, RemainingTurns);
     }
 
     private int GetConnectedVillageCount()
