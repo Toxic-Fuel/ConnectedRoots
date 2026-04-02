@@ -219,9 +219,9 @@ namespace GridGeneration
                 Debug.LogError("GridMap: No villages were placed.", this);
             }
 
-            GenerateQuests(rng);
-
+            // Reserve protected paths first so quest placement logic can avoid them.
             ReservePathsForSettlements(rng, settlementNodes);
+            GenerateQuests(rng);
             PlaceObstacles(rng, obstacleTiles);
         }
 
