@@ -11,6 +11,7 @@ public class SelectTile : MonoBehaviour
     [SerializeField] private TileBuilding hoverAnimationSource;
     [SerializeField] private InputActionReference selectAction;
     [SerializeField] private InputActionReference deselectAction;
+    [SerializeField] private InputActionReference selectPositionAction;
 
     [Header("Selection Animation")]
     [SerializeField] private float selectedLiftHeight = 0.2f;
@@ -73,6 +74,11 @@ public class SelectTile : MonoBehaviour
         {
             deselectAction.action.Enable();
         }
+
+        if (selectPositionAction != null && selectPositionAction.action != null)
+        {
+            selectPositionAction.action.Enable();
+        }
     }
 
     private void Update()
@@ -97,6 +103,11 @@ public class SelectTile : MonoBehaviour
         if (deselectAction != null && deselectAction.action != null)
         {
             deselectAction.action.Disable();
+        }
+
+        if (selectPositionAction != null && selectPositionAction.action != null)
+        {
+            selectPositionAction.action.Disable();
         }
 
         pendingMouseSelection = false;
@@ -132,12 +143,9 @@ public class SelectTile : MonoBehaviour
 
     private bool IsSelectInputPressedThisFrame()
     {
-        if (selectAction != null && selectAction.action != null)
-        {
-            return selectAction.action.WasPressedThisFrame();
-        }
-
-        return Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame;
+        return selectAction != null
+            && selectAction.action != null
+            && selectAction.action.WasPressedThisFrame();
     }
 
     private static bool IsEscapePressedThisFrame()
@@ -147,57 +155,58 @@ public class SelectTile : MonoBehaviour
 
     private void TryToggleSelectionOnClick()
     {
-        if (Mouse.current != null)
+        if (selectAction == null || selectAction.action == null)
         {
-            if (Mouse.current.leftButton.wasPressedThisFrame)
-            {
-                pendingMouseSelection = true;
-                mousePressPosition = Mouse.current.position.ReadValue();
-                return;
-            }
-
-            if (Mouse.current.leftButton.wasReleasedThisFrame)
-            {
-                if (!pendingMouseSelection)
-                {
-                    return;
-                }
-
-                pendingMouseSelection = false;
-
-                float thresholdSq = clickSelectionThresholdPixels * clickSelectionThresholdPixels;
-                Vector2 releasePosition = Mouse.current.position.ReadValue();
-                if ((releasePosition - mousePressPosition).sqrMagnitude > thresholdSq)
-                {
-                    // Treat as drag gesture; do not select.
-                    return;
-                }
-
-                if (IsPointerOverUI())
-                {
-                    return;
-                }
-
-                TryToggleSelectionAtPointer();
-            }
-
             return;
         }
 
-        if (selectAction != null && selectAction.action != null && selectAction.action.WasPressedThisFrame())
-        {
-            if (IsPointerOverUI())
-            {
-                return;
-            }
+        bool wasPressed = selectAction.action.WasPressedThisFrame();
+        bool wasReleased = selectAction.action.WasReleasedThisFrame();
 
-            TryToggleSelectionAtPointer();
+        if (wasPressed)
+        {
+            pendingMouseSelection = true;
+            if (!TryGetPointerScreenPosition(out mousePressPosition))
+            {
+                pendingMouseSelection = false;
+            }
         }
+
+        if (!wasReleased)
+        {
+            return;
+        }
+
+        if (!pendingMouseSelection)
+        {
+            return;
+        }
+
+        pendingMouseSelection = false;
+
+        if (!TryGetPointerScreenPosition(out Vector2 releasePosition))
+        {
+            return;
+        }
+
+        float thresholdSq = clickSelectionThresholdPixels * clickSelectionThresholdPixels;
+        if ((releasePosition - mousePressPosition).sqrMagnitude > thresholdSq)
+        {
+            // Treat as drag gesture; do not select.
+            return;
+        }
+
+        if (IsPointerOverUI())
+        {
+            return;
+        }
+
+        TryToggleSelectionAtPointer();
     }
 
     private void TryToggleSelectionAtPointer()
     {
-        if (!TryGetMouseGridCoordinate(out Vector2Int coordinate))
+        if (!TryGetPointerGridCoordinate(out Vector2Int coordinate))
         {
             return;
         }
@@ -245,15 +254,20 @@ public class SelectTile : MonoBehaviour
             && tileType != TileType.Village;
     }
 
-    private bool TryGetMouseGridCoordinate(out Vector2Int coordinate)
+    private bool TryGetPointerGridCoordinate(out Vector2Int coordinate)
     {
         coordinate = new Vector2Int(-1, -1);
-        if (Mouse.current == null || mainCamera == null || gridMap == null)
+        if (mainCamera == null || gridMap == null)
         {
             return false;
         }
 
-        Ray ray = mainCamera.ScreenPointToRay(Mouse.current.position.ReadValue());
+        if (!TryGetPointerScreenPosition(out Vector2 pointerPosition))
+        {
+            return false;
+        }
+
+        Ray ray = mainCamera.ScreenPointToRay(pointerPosition);
         Plane groundPlane = new Plane(Vector3.up, new Vector3(0f, gridMap.transform.position.y, 0f));
 
         if (!groundPlane.Raycast(ray, out float enterDistance))
@@ -263,6 +277,19 @@ public class SelectTile : MonoBehaviour
 
         Vector3 worldPoint = ray.GetPoint(enterDistance);
         return gridMap.TryWorldToGridCoordinate(worldPoint, out coordinate);
+    }
+
+    private bool TryGetPointerScreenPosition(out Vector2 pointerPosition)
+    {
+        pointerPosition = Vector2.zero;
+
+        if (selectPositionAction == null || selectPositionAction.action == null)
+        {
+            return false;
+        }
+
+        pointerPosition = selectPositionAction.action.ReadValue<Vector2>();
+        return true;
     }
 
     private void SelectTileAt(GameObject tileObject, Vector2Int coordinate)

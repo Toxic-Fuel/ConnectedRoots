@@ -49,19 +49,19 @@ public class ResourceTurnsUI : MonoBehaviour
             resourcesPerTurnTexts[i] = resourcesPerTurnGO.GetComponentInChildren<TMP_Text>();
         }
         RectTransform resourcesPerTurnRect = ResourcesPerTurnParent.GetComponent<RectTransform>();
-        if (resourcesPerTurnRect != null)
-        {
-            Vector2 size = resourcesPerTurnRect.sizeDelta;
-            size.y = resourceCount * 150f; // Adjust height based on number of resources
-            resourcesPerTurnRect.sizeDelta = size;
-
-            // Align to top-left corner
-            // Align to top-right corner
-            resourcesPerTurnRect.anchorMin = new Vector2(1, 1);
-            resourcesPerTurnRect.anchorMax = new Vector2(1, 1);
-            resourcesPerTurnRect.pivot = new Vector2(1, 1);
-            resourcesPerTurnRect.anchoredPosition = Vector2.zero;
-        }
+        // if (resourcesPerTurnRect != null)
+        // {
+        //     Vector2 size = resourcesPerTurnRect.sizeDelta;
+        //     size.y = resourceCount * 150f; // Adjust height based on number of resources
+        //     resourcesPerTurnRect.sizeDelta = size;
+        //
+        //     // Align to top-left corner
+        //     // Align to top-right corner
+        //     // resourcesPerTurnRect.anchorMin = new Vector2(1, 1);
+        //     // resourcesPerTurnRect.anchorMax = new Vector2(1, 1);
+        //     // resourcesPerTurnRect.pivot = new Vector2(1, 1);
+        //     //resourcesPerTurnRect.anchoredPosition = Vector2.zero;
+        // }
     }
     public void UpdateTexts(int[] currentResources, int[] resourcesPerTurn, int remainingTurns)
     {

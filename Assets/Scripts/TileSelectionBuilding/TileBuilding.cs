@@ -20,6 +20,7 @@ public class TileBuilding : MonoBehaviour
     [SerializeField] private UnityEngine.Camera mainCamera;
     [SerializeField] private SelectTile selectTile;
     [SerializeField] private TileBuildContextPanel tileBuildContextPanel;
+    [SerializeField] private FogOfWarController fogOfWar;
 
     [Header("Road Prefabs")]
     [SerializeField] private GameObject roadVerticalPrefab;
@@ -52,6 +53,19 @@ public class TileBuilding : MonoBehaviour
     [SerializeField] GameObject buildEffectPrefab;
     [SerializeField] private float yEffectOffset = 0.5f;
 
+    [Header("Road Cost Scaling")]
+    [SerializeField] private bool useDynamicRoadCostScaling = true;
+    [SerializeField, Min(0)] private int freeRoadsBeforeScaling = 2;
+    [SerializeField, Min(1)] private int roadsPerCostStep = 1;
+    [SerializeField, Min(0)] private int woodPerStep = 1;
+    [SerializeField, Min(0)] private int stonePerStep = 1;
+
+    [Header("Map Size Scaling")]
+    [SerializeField] private bool scaleRoadCostByMapSize = false;
+    [SerializeField, Range(0f, 0.25f)] private float freeRoadsMapAreaRatio = 0.01f;
+    [SerializeField, Range(0.001f, 0.25f)] private float roadsPerStepMapAreaRatio = 0.0075f;
+    [SerializeField, Range(0f, 1f)] private float mapSizeScalingStrength = 1f;
+
     private GameObject hoveredTile;
     private Vector3 hoveredBasePosition;
     private Vector2Int hoveredCoordinate = new Vector2Int(-1, -1);
@@ -62,6 +76,8 @@ public class TileBuilding : MonoBehaviour
     private int connectedVillageCounter;
 
     public event Action RoadPlaced;
+    public event Action<Vector2Int> RoadBuiltAt;
+    public event Action<Vector2Int> StructureBuiltAt;
 
     public bool TryGetHoveredCoordinate(out Vector2Int coordinate)
     {
@@ -95,6 +111,11 @@ public class TileBuilding : MonoBehaviour
     public bool IsBlockedForHoverOrSelection(Vector2Int coordinate)
     {
         if (gridMap == null || !gridMap.IsInsideGrid(coordinate))
+        {
+            return true;
+        }
+
+        if (fogOfWar != null && fogOfWar.IsInitialized && !fogOfWar.IsRevealed(coordinate))
         {
             return true;
         }
@@ -143,6 +164,24 @@ public class TileBuilding : MonoBehaviour
         return TryBuildRoadInternal(coordinate);
     }
 
+    public bool TryGetRoadBuildCost(Vector2Int coordinate, out int[] cost)
+    {
+        cost = new int[turns != null ? Mathf.Max(0, turns.resourceTypesCount) : 0];
+
+        if (gridMap == null || !gridMap.IsInsideGrid(coordinate))
+        {
+            return false;
+        }
+
+        GridTile tile = gridMap.GetTileAt(coordinate.x, coordinate.y);
+        if (tile == null)
+        {
+            return false;
+        }
+
+        return TryGetRoadCostByTile(tile, out cost);
+    }
+
     public int GetConnectedVillageCount()
     {
         return connectedVillageCounter;
@@ -151,6 +190,11 @@ public class TileBuilding : MonoBehaviour
     public void NotifyRoadPlacementChanged()
     {
         RoadPlaced?.Invoke();
+    }
+
+    public void NotifyStructureBuiltAt(Vector2Int coordinate)
+    {
+        StructureBuiltAt?.Invoke(coordinate);
     }
 
     private void Awake()
@@ -168,6 +212,11 @@ public class TileBuilding : MonoBehaviour
         if (tileBuildContextPanel == null)
         {
             tileBuildContextPanel = FindAnyObjectByType<TileBuildContextPanel>();
+        }
+
+        if (fogOfWar == null)
+        {
+            fogOfWar = FindAnyObjectByType<FogOfWarController>();
         }
 
         if (mainCamera == null)
@@ -363,6 +412,7 @@ public class TileBuilding : MonoBehaviour
 
         UpdateConnectedVillageCounter();
         RoadPlaced?.Invoke();
+        RoadBuiltAt?.Invoke(tileCoordinate);
 
         SpawnBuildEffectAt(tileCoordinate);
         //Debug.Log($"Built road at ({tileCoordinate.x}, {tileCoordinate.y}) | Cost: W{woodCost} S{stoneCost}");
@@ -720,12 +770,12 @@ public class TileBuilding : MonoBehaviour
             }
             else
             {
-                cost = NormalizeCostLength(new[] { 1, 1 }, expectedLength);
+                cost = NormalizeCostLength(new[] { 0, 1, 1 }, expectedLength);
             }
         }
         else
         {
-            cost = NormalizeCostLength(new[] { 1, 1 }, expectedLength);
+            cost = NormalizeCostLength(new[] { 0, 1, 1 }, expectedLength);
             return false;
         }
 
@@ -740,7 +790,52 @@ public class TileBuilding : MonoBehaviour
             return false;
         }
 
+        ApplyDynamicRoadCostScaling(cost);
+
         return true;
+    }
+
+    private void ApplyDynamicRoadCostScaling(int[] cost)
+    {
+        if (!useDynamicRoadCostScaling || cost == null || roadsPerCostStep <= 0)
+        {
+            return;
+        }
+
+        int effectiveFreeRoads = freeRoadsBeforeScaling;
+        int effectiveRoadsPerStep = roadsPerCostStep;
+
+        if (scaleRoadCostByMapSize && gridMap != null)
+        {
+            int mapArea = Mathf.Max(1, gridMap.Width * gridMap.Height);
+            int mapFreeRoads = Mathf.Max(0, Mathf.RoundToInt(mapArea * Mathf.Max(0f, freeRoadsMapAreaRatio)));
+            int mapRoadsPerStep = Mathf.Max(1, Mathf.RoundToInt(mapArea * Mathf.Max(0.001f, roadsPerStepMapAreaRatio)));
+
+            // Strength=0 keeps manual values; Strength=1 fully derives from map size.
+            effectiveFreeRoads = Mathf.Max(0, Mathf.RoundToInt(Mathf.Lerp(freeRoadsBeforeScaling, mapFreeRoads, mapSizeScalingStrength)));
+            effectiveRoadsPerStep = Mathf.Max(1, Mathf.RoundToInt(Mathf.Lerp(roadsPerCostStep, mapRoadsPerStep, mapSizeScalingStrength)));
+        }
+
+        int roadsBuilt = builtRoads.Count;
+        int scaledRoadCount = Mathf.Max(0, roadsBuilt - effectiveFreeRoads);
+        int stepCount = scaledRoadCount / effectiveRoadsPerStep;
+        if (stepCount <= 0)
+        {
+            return;
+        }
+
+        int woodIndex = (int)ResourceType.Wood;
+        int stoneIndex = (int)ResourceType.Stone;
+
+        if (woodIndex >= 0 && woodIndex < cost.Length)
+        {
+            cost[woodIndex] += stepCount * Mathf.Max(0, woodPerStep);
+        }
+
+        if (stoneIndex >= 0 && stoneIndex < cost.Length)
+        {
+            cost[stoneIndex] += stepCount * Mathf.Max(0, stonePerStep);
+        }
     }
 
     private static int[] NormalizeCostLength(int[] source, int expectedLength)

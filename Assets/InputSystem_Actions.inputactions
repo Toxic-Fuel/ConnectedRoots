@@ -122,6 +122,33 @@
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
+                },
+                {
+                    "name": "Select Position",
+                    "type": "PassThrough",
+                    "id": "38f5b100-9a74-4e6a-98ee-dab92d9feffb",
+                    "expectedControlType": "Vector2",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": true
+                },
+                {
+                    "name": "TouchDelta",
+                    "type": "Value",
+                    "id": "7f090cd4-eeb7-4120-8934-01bee646dfd4",
+                    "expectedControlType": "Vector2",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": true
+                },
+                {
+                    "name": "Hold",
+                    "type": "Button",
+                    "id": "3cc93acc-e160-4b4d-892d-8c03d99e040b",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
                 }
             ],
             "bindings": [
@@ -142,7 +169,7 @@
                     "path": "Dpad",
                     "interactions": "",
                     "processors": "",
-                    "groups": "",
+                    "groups": ";Keyboard&Mouse",
                     "action": "Move",
                     "isComposite": true,
                     "isPartOfComposite": false
@@ -523,8 +550,8 @@
                 },
                 {
                     "name": "",
-                    "id": "5c573a0c-fa83-4c16-86dd-4fb3ab7783ff",
-                    "path": "<Touchscreen>/Press",
+                    "id": "1cd6aa14-509f-4c92-b3ed-ac259470bd99",
+                    "path": "<Gamepad>/buttonEast",
                     "interactions": "",
                     "processors": "",
                     "groups": ";Touch",
@@ -539,17 +566,6 @@
                     "interactions": "",
                     "processors": "",
                     "groups": ";Keyboard&Mouse",
-                    "action": "Build Road",
-                    "isComposite": false,
-                    "isPartOfComposite": false
-                },
-                {
-                    "name": "",
-                    "id": "aa53b462-df44-4952-bc42-db9a43017e80",
-                    "path": "<Touchscreen>/Press",
-                    "interactions": "",
-                    "processors": "",
-                    "groups": ";Touch",
                     "action": "Build Road",
                     "isComposite": false,
                     "isPartOfComposite": false
@@ -578,17 +594,6 @@
                 },
                 {
                     "name": "",
-                    "id": "1dfb9c38-d32c-4537-84ba-74ad84b5d119",
-                    "path": "<Touchscreen>/Press",
-                    "interactions": "",
-                    "processors": "",
-                    "groups": ";Touch",
-                    "action": "Deselect Tile",
-                    "isComposite": false,
-                    "isPartOfComposite": false
-                },
-                {
-                    "name": "",
                     "id": "0c19e10b-7f9c-4ffd-94e2-239fd67a1fc0",
                     "path": "<Keyboard>/escape",
                     "interactions": "",
@@ -600,12 +605,45 @@
                 },
                 {
                     "name": "",
-                    "id": "6e2fd367-0cd2-457a-bff3-b5143fde3e63",
+                    "id": "23ae2140-176b-48ae-bb6a-42723e458098",
+                    "path": "<Pointer>/position",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Keyboard&Mouse;Touch",
+                    "action": "Select Position",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "7a68dbf4-a177-464d-a2aa-1e25ea151c44",
+                    "path": "<Touchscreen>/delta",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Touch",
+                    "action": "TouchDelta",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "6f803ef3-e0c9-40cb-95d2-f414ce687edf",
                     "path": "<Mouse>/leftButton",
                     "interactions": "",
                     "processors": "",
-                    "groups": ";Keyboard&Mouse",
-                    "action": "Deselect Tile",
+                    "groups": "",
+                    "action": "Hold",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "61541dad-f48f-430a-b622-a2559155d674",
+                    "path": "<Touchscreen>/Press",
+                    "interactions": "Press",
+                    "processors": "",
+                    "groups": ";Touch",
+                    "action": "Hold",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }
@@ -1122,6 +1160,114 @@
                     "processors": "",
                     "groups": "XR",
                     "action": "TrackedDeviceOrientation",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                }
+            ]
+        },
+        {
+            "name": "CameraZoom",
+            "id": "8c8773cf-5f4d-4936-9337-ea6c7bb8a08d",
+            "actions": [
+                {
+                    "name": "CameraScroll",
+                    "type": "Value",
+                    "id": "32e17553-9c91-408f-a3d3-22a8f53f05c3",
+                    "expectedControlType": "Vector2",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": true
+                },
+                {
+                    "name": "Touch0Press",
+                    "type": "Button",
+                    "id": "32921ff6-3097-482f-8d98-fbfa296b419b",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "Touch1Press",
+                    "type": "Button",
+                    "id": "0dbd7179-2505-4250-a528-a29cf0a9c4bb",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "Touch0Position",
+                    "type": "Value",
+                    "id": "1efaa549-2c58-4b94-a7f4-a16b118a6b60",
+                    "expectedControlType": "Vector2",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": true
+                },
+                {
+                    "name": "Touch1Position",
+                    "type": "Value",
+                    "id": "2b80fd60-a6ce-4ee3-bc18-de808b3527a0",
+                    "expectedControlType": "Vector2",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": true
+                }
+            ],
+            "bindings": [
+                {
+                    "name": "",
+                    "id": "1bb672e3-1abe-4049-83cb-80bb1c5055d2",
+                    "path": "<Mouse>/scroll",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Keyboard&Mouse",
+                    "action": "CameraScroll",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "f869de4a-99db-4fdd-ac13-2734d00799ad",
+                    "path": "<Touchscreen>/touch0/press",
+                    "interactions": "Press",
+                    "processors": "",
+                    "groups": ";Touch",
+                    "action": "Touch0Press",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "1e803500-da62-45e0-a517-f71f6573c53c",
+                    "path": "<Touchscreen>/touch1/press",
+                    "interactions": "Press",
+                    "processors": "",
+                    "groups": ";Touch",
+                    "action": "Touch1Press",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "07afe766-2599-4aad-9734-635bac9be699",
+                    "path": "<Touchscreen>/touch0/position",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Touch",
+                    "action": "Touch0Position",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "358a51ad-4d7f-4b3e-be49-796f72246f0b",
+                    "path": "<Touchscreen>/touch1/position",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Touch",
+                    "action": "Touch1Position",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }
