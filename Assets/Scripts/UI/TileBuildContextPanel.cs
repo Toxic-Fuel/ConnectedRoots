@@ -485,7 +485,7 @@ public class TileBuildContextPanel : MonoBehaviour
             return false;
         }
 
-        return TryGetRoadCostByTile(tile, out cost);
+        return tileBuilding.TryGetRoadBuildCost(coordinate, out cost);
     }
 
     private void UpdateCostTexts(int[] cost)
@@ -817,23 +817,10 @@ public class TileBuildContextPanel : MonoBehaviour
     }
     private bool TryGetRoadCostByTile(GridTile tile, out int[] cost)
     {
-        cost = new int[turns != null ? turns.resourceTypesCount : 0];
-
-        if (tile == null)
-        {
-            return false;
-        }
-
-        string lower = (tile.tileName ?? string.Empty).Trim().ToLowerInvariant();
-        if (lower == "obstacle1" || lower == "obstacle2")
-        {
-            return false;
-        }
-
-        // Use the same configured Road cost row that spending uses.
+        // Kept for compatibility with older call paths, but road preview now uses
+        // TileBuilding.TryGetRoadBuildCost so dynamic scaling and spending match.
         cost = GetBuildingCost(Building.Road);
-
-        return true;
+        return tile != null;
     }
     private void SetPanelVisible(bool visible)
     {
