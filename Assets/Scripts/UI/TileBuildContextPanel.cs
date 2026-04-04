@@ -419,7 +419,7 @@ public class TileBuildContextPanel : MonoBehaviour
     }
 
     public int[][] GetBuildingResourceCost() => buildingCost;
-    
+
     public bool HasCollectorBuildingAt(Vector2Int coordinate) => placedCollectorBuildings.Contains(coordinate);
 
     public void GetBuildingActionAndTurnCost(Building building, out int actionCost, out int turnCost)
@@ -473,7 +473,7 @@ public class TileBuildContextPanel : MonoBehaviour
 
     private bool TryGetRoadCost(GridTile tile, Vector2Int coordinate, out int[] cost)
     {
-        cost = new int[turns.resourceTypesCount];
+        cost = new int[turns != null ? turns.resourceTypesCount : 0];
 
         if (tileBuilding == null || tile == null)
         {
@@ -490,14 +490,20 @@ public class TileBuildContextPanel : MonoBehaviour
 
     private void UpdateCostTexts(int[] cost)
     {
-        if (woodCostText != null && cost.Length > 0)
+        int woodIndex = (int)ResourceType.Wood;
+        int stoneIndex = (int)ResourceType.Stone;
+
+        int woodCost = (cost != null && woodIndex >= 0 && woodIndex < cost.Length) ? cost[woodIndex] : 0;
+        int stoneCost = (cost != null && stoneIndex >= 0 && stoneIndex < cost.Length) ? cost[stoneIndex] : 0;
+
+        if (woodCostText != null)
         {
-            woodCostText.text = cost[0].ToString();
+            woodCostText.text = woodCost.ToString();
         }
 
-        if (stoneCostText != null && cost.Length > 1)
+        if (stoneCostText != null)
         {
-            stoneCostText.text = cost[1].ToString();
+            stoneCostText.text = stoneCost.ToString();
         }
     }
 
@@ -811,7 +817,7 @@ public class TileBuildContextPanel : MonoBehaviour
     }
     private bool TryGetRoadCostByTile(GridTile tile, out int[] cost)
     {
-        cost = new int[turns.resourceTypesCount];
+        cost = new int[turns != null ? turns.resourceTypesCount : 0];
 
         if (tile == null)
         {
@@ -823,6 +829,9 @@ public class TileBuildContextPanel : MonoBehaviour
         {
             return false;
         }
+
+        // Use the same configured Road cost row that spending uses.
+        cost = GetBuildingCost(Building.Road);
 
         return true;
     }
