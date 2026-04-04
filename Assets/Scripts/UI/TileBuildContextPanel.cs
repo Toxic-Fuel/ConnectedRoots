@@ -920,6 +920,7 @@ public class TileBuildContextPanel : MonoBehaviour
         placedCollectorBuildings.Add(currentCoordinate);
         if (tileBuilding != null)
         {
+            tileBuilding.NotifyStructureBuiltAt(currentCoordinate);
             tileBuilding.NotifyRoadPlacementChanged();
         }
 

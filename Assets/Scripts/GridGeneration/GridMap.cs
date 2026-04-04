@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
+using System;
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -9,6 +10,8 @@ namespace GridGeneration
 {
     public class GridMap : MonoBehaviour
     {
+        public event Action<GridMap> MapGenerated;
+
         private static readonly Vector2Int[] CardinalDirections =
         {
             Vector2Int.up,
@@ -223,6 +226,8 @@ namespace GridGeneration
             ReservePathsForSettlements(rng, settlementNodes);
             GenerateQuests(rng);
             PlaceObstacles(rng, obstacleTiles);
+
+            MapGenerated?.Invoke(this);
         }
 
         private void GenerateQuests(System.Random rng)

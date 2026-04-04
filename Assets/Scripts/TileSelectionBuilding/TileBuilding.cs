@@ -20,6 +20,7 @@ public class TileBuilding : MonoBehaviour
     [SerializeField] private UnityEngine.Camera mainCamera;
     [SerializeField] private SelectTile selectTile;
     [SerializeField] private TileBuildContextPanel tileBuildContextPanel;
+    [SerializeField] private FogOfWarController fogOfWar;
 
     [Header("Road Prefabs")]
     [SerializeField] private GameObject roadVerticalPrefab;
@@ -75,6 +76,8 @@ public class TileBuilding : MonoBehaviour
     private int connectedVillageCounter;
 
     public event Action RoadPlaced;
+    public event Action<Vector2Int> RoadBuiltAt;
+    public event Action<Vector2Int> StructureBuiltAt;
 
     public bool TryGetHoveredCoordinate(out Vector2Int coordinate)
     {
@@ -108,6 +111,11 @@ public class TileBuilding : MonoBehaviour
     public bool IsBlockedForHoverOrSelection(Vector2Int coordinate)
     {
         if (gridMap == null || !gridMap.IsInsideGrid(coordinate))
+        {
+            return true;
+        }
+
+        if (fogOfWar != null && fogOfWar.IsInitialized && !fogOfWar.IsRevealed(coordinate))
         {
             return true;
         }
@@ -184,6 +192,11 @@ public class TileBuilding : MonoBehaviour
         RoadPlaced?.Invoke();
     }
 
+    public void NotifyStructureBuiltAt(Vector2Int coordinate)
+    {
+        StructureBuiltAt?.Invoke(coordinate);
+    }
+
     private void Awake()
     {
         if (gridMap == null)
@@ -199,6 +212,11 @@ public class TileBuilding : MonoBehaviour
         if (tileBuildContextPanel == null)
         {
             tileBuildContextPanel = FindAnyObjectByType<TileBuildContextPanel>();
+        }
+
+        if (fogOfWar == null)
+        {
+            fogOfWar = FindAnyObjectByType<FogOfWarController>();
         }
 
         if (mainCamera == null)
@@ -394,6 +412,7 @@ public class TileBuilding : MonoBehaviour
 
         UpdateConnectedVillageCounter();
         RoadPlaced?.Invoke();
+        RoadBuiltAt?.Invoke(tileCoordinate);
 
         SpawnBuildEffectAt(tileCoordinate);
         //Debug.Log($"Built road at ({tileCoordinate.x}, {tileCoordinate.y}) | Cost: W{woodCost} S{stoneCost}");
