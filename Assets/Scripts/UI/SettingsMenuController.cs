@@ -28,6 +28,7 @@ public class SettingsMenuController : MonoBehaviour
     private readonly Dictionary<Component, bool> _previousEnabledStates = new Dictionary<Component, bool>();
     private bool _lastMenuVisibleState;
     private bool _isRestoringSettings;
+    private bool _hasLoadedSettings;
 
     private const string KeySfxVolume = "Settings.SfxVolume";
     private const string KeyMusicVolume = "Settings.MusicVolume";
@@ -60,11 +61,13 @@ public class SettingsMenuController : MonoBehaviour
 
     private void OnEnable()
     {
-        CacheControls();
         CacheTargetControllers();
-        LoadSavedSettingsToUI();
+        LoadSavedSettingsToState();
+        ApplyCurrentSettings();
+
+        CacheControls();
+        LoadStateToUI();
         RegisterCallbacks();
-        UpdateSettings();
 
         _lastMenuVisibleState = IsMenuVisible();
         ApplyMenuEnabledState(_lastMenuVisibleState);
@@ -72,7 +75,11 @@ public class SettingsMenuController : MonoBehaviour
 
     private void OnDisable()
     {
-        SaveCurrentSettings();
+        if (_hasLoadedSettings)
+        {
+            SaveCurrentSettings();
+        }
+
         UnregisterCallbacks();
         ApplyMenuEnabledState(false);
     }
@@ -110,8 +117,16 @@ public class SettingsMenuController : MonoBehaviour
 
         if (!_isRestoringSettings)
         {
+            _hasLoadedSettings = true;
             SaveCurrentSettings();
         }
+    }
+
+    private void ApplyCurrentSettings()
+    {
+        ApplySensitivityToCameraControllers();
+        ApplyTextureQuality(TexturesQualityIndex);
+        ApplyShadowQuality(ShadowsQualityIndex);
     }
 
     private bool AreControlsReady()
@@ -239,48 +254,58 @@ public class SettingsMenuController : MonoBehaviour
         }
     }
 
-    private void LoadSavedSettingsToUI()
+    private void LoadSavedSettingsToState()
     {
+        SfxVolume = Mathf.Max(0, PlayerPrefs.GetInt(KeySfxVolume, DefaultSfxVolume));
+        MusicVolume = Mathf.Max(0, PlayerPrefs.GetInt(KeyMusicVolume, DefaultMusicVolume));
+        MoveSensitivity = Mathf.Max(0f, PlayerPrefs.GetFloat(KeyMoveSensitivity, DefaultMoveSensitivity));
+        ZoomSensitivity = Mathf.Max(0f, PlayerPrefs.GetFloat(KeyZoomSensitivity, DefaultZoomSensitivity));
+        TexturesQualityIndex = Mathf.Max(0, PlayerPrefs.GetInt(KeyTexturesQualityIndex, DefaultTexturesQualityIndex));
+        ShadowsQualityIndex = Mathf.Max(0, PlayerPrefs.GetInt(KeyShadowsQualityIndex, DefaultShadowsQualityIndex));
+        _hasLoadedSettings = true;
+    }
+
+    private void LoadStateToUI()
+    {
+        if (!AreControlsReady())
+        {
+            return;
+        }
+
         _isRestoringSettings = true;
 
         if (_sfxSlider != null)
         {
-            int sfx = PlayerPrefs.GetInt(KeySfxVolume, DefaultSfxVolume);
-            int clampedSfx = Mathf.Clamp(sfx, Mathf.RoundToInt(_sfxSlider.lowValue), Mathf.RoundToInt(_sfxSlider.highValue));
+            int clampedSfx = Mathf.Clamp(SfxVolume, Mathf.RoundToInt(_sfxSlider.lowValue), Mathf.RoundToInt(_sfxSlider.highValue));
             _sfxSlider.SetValueWithoutNotify(clampedSfx);
         }
 
         if (_musicSlider != null)
         {
-            int music = PlayerPrefs.GetInt(KeyMusicVolume, DefaultMusicVolume);
-            int clampedMusic = Mathf.Clamp(music, Mathf.RoundToInt(_musicSlider.lowValue), Mathf.RoundToInt(_musicSlider.highValue));
+            int clampedMusic = Mathf.Clamp(MusicVolume, Mathf.RoundToInt(_musicSlider.lowValue), Mathf.RoundToInt(_musicSlider.highValue));
             _musicSlider.SetValueWithoutNotify(clampedMusic);
         }
 
         if (_moveSensitivitySlider != null)
         {
-            float move = PlayerPrefs.GetFloat(KeyMoveSensitivity, DefaultMoveSensitivity);
-            float clampedMove = Mathf.Clamp(move, _moveSensitivitySlider.lowValue, _moveSensitivitySlider.highValue);
+            float clampedMove = Mathf.Clamp(MoveSensitivity, _moveSensitivitySlider.lowValue, _moveSensitivitySlider.highValue);
             _moveSensitivitySlider.SetValueWithoutNotify(clampedMove);
         }
 
         if (_zoomSensitivitySlider != null)
         {
-            float zoom = PlayerPrefs.GetFloat(KeyZoomSensitivity, DefaultZoomSensitivity);
-            float clampedZoom = Mathf.Clamp(zoom, _zoomSensitivitySlider.lowValue, _zoomSensitivitySlider.highValue);
+            float clampedZoom = Mathf.Clamp(ZoomSensitivity, _zoomSensitivitySlider.lowValue, _zoomSensitivitySlider.highValue);
             _zoomSensitivitySlider.SetValueWithoutNotify(clampedZoom);
         }
 
         if (_texturesDropdown != null)
         {
-            int texturesIndex = PlayerPrefs.GetInt(KeyTexturesQualityIndex, DefaultTexturesQualityIndex);
-            SetDropdownIndex(_texturesDropdown, texturesIndex);
+            SetDropdownIndex(_texturesDropdown, TexturesQualityIndex);
         }
 
         if (_shadowsDropdown != null)
         {
-            int shadowsIndex = PlayerPrefs.GetInt(KeyShadowsQualityIndex, DefaultShadowsQualityIndex);
-            SetDropdownIndex(_shadowsDropdown, shadowsIndex);
+            SetDropdownIndex(_shadowsDropdown, ShadowsQualityIndex);
         }
 
         _isRestoringSettings = false;
@@ -542,7 +567,9 @@ public class SettingsMenuController : MonoBehaviour
 
         CacheControls();
         RegisterCallbacks();
-        LoadSavedSettingsToUI();
+        LoadSavedSettingsToState();
+        LoadStateToUI();
+        ApplyCurrentSettings();
         UpdateSettings();
 
         _lastMenuVisibleState = true;

@@ -14,14 +14,23 @@ namespace ScoreSystem
     {
         [Min(0)] [SerializeField] private int scoreValue;
         [SerializeField] private float[] scoreMultipliers;
-        private readonly Stopwatch _timePassed = new Stopwatch();
         [SerializeField] private float difficultyMultiplier = 1f;
+        [SerializeField] private float turnMultiplier = 1f;
+        [SerializeField, Min(1)] private int perfectTurns = 10;
+        [SerializeField] private Turns turns;
+
+        private readonly Stopwatch _timePassed = new Stopwatch();
+        private int _turnsUsed;
+        private bool _isEndScoreCalculated;
         
         public int ScoreValue
         {
             get => scoreValue;
             set => scoreValue = value;
         }
+
+        public float TurnMultiplier => turnMultiplier;
+        public float DifficultyMultiplier => difficultyMultiplier;
 
         public void AddToScore(float value)
         {
@@ -42,14 +51,55 @@ namespace ScoreSystem
         
         public void CalculateEndScore()
         {
+            if (_isEndScoreCalculated)
+            {
+                return;
+            }
+
+            UpdateTurnMultiplier();
+
             var timePenalty = _timePassed.Elapsed.TotalSeconds;
             AddToScore(-(float)timePenalty, ScoreType.Time);
-            ScoreValue = (int)(ScoreValue*difficultyMultiplier);
+            ScoreValue = Mathf.RoundToInt(ScoreValue * difficultyMultiplier * turnMultiplier);
+            _isEndScoreCalculated = true;
         }
 
         private void Start()
         {
+            if (turns == null)
+            {
+                turns = FindAnyObjectByType<Turns>();
+            }
+
+            if (turns != null)
+            {
+                turns.TurnStarted -= OnTurnStarted;
+                turns.TurnStarted += OnTurnStarted;
+            }
+
             _timePassed.Start();
+        }
+
+        private void OnDisable()
+        {
+            if (turns != null)
+            {
+                turns.TurnStarted -= OnTurnStarted;
+            }
+        }
+
+        private void OnTurnStarted(Turns _)
+        {
+            _turnsUsed++;
+        }
+
+        private void UpdateTurnMultiplier()
+        {
+            int usedTurns = Mathf.Max(1, _turnsUsed);
+            int targetTurns = Mathf.Max(1, perfectTurns);
+
+            // Faster-than-perfect gives >1.0, slower gives <1.0.
+            turnMultiplier = (float)targetTurns / usedTurns;
         }
     }
 }

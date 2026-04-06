@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:ui="UnityEngine.UIElements"
+    xsi:noNamespaceSchemaLocation="../../UIElementsSchema/UIElements.xsd"
+>
+    <Style src="project://database/Assets/UIBuilder/EndGameScreen.uss?fileID=7433441132597879392&amp;guid=1d430ed1f9674d39abe6645dbe9a08ac&amp;type=3#EndGameScreen"/>
+
+    <ui:VisualElement name="EndGameOverlay" class="endgame-overlay endgame-overlay--open">
+        <ui:VisualElement name="EndGamePanel" class="endgame-panel endgame-panel--open">
+            <ui:Label name="SummaryTitle" text="Summary" class="summary-title"/>
+            <ui:Label name="ResultTitle" text="Result" class="result-title"/>
+
+            <ui:VisualElement name="EndGameBody" class="endgame-body">
+                <ui:VisualElement name="StatsColumn" class="stats-column">
+                    <ui:Label name="ScoreText" text="Score: 0" class="stat-text"/>
+                    <ui:Label name="HighscoreText" text="Highscore: 0" class="stat-text"/>
+                    <ui:Label name="SpeedRatingText" text="Speed rating: 0%" class="stat-text"/>
+                    <ui:Label name="DifficultyText" text="Difficulty rating: 60%" class="stat-text"/>
+                </ui:VisualElement>
+
+                <ui:VisualElement name="ButtonsColumn" class="buttons-column">
+                    <ui:Button name="ViewMapButton" text="View Map" class="endgame-button"/>
+                    <ui:Button name="PlayAgainButton" text="Play again" class="endgame-button"/>
+                    <ui:Button name="QuitButton" text="Quit" class="endgame-button"/>
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>
