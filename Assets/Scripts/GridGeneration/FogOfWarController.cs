@@ -10,6 +10,7 @@ public class FogOfWarController : MonoBehaviour
     [Header("Fog")]
     [SerializeField] private GameObject fogTilePrefab;
     [SerializeField, Min(0)] private int revealRadius = 1;
+    [SerializeField] private bool hideUnrevealedTileVisuals = true;
 
     private GameObject[,] fogInstances;
     private bool[,] revealedTiles;
@@ -161,6 +162,11 @@ public class FogOfWarController : MonoBehaviour
             }
         }
 
+        if (hideUnrevealedTileVisuals)
+        {
+            SetAllTileVisualsVisible(false);
+        }
+
         IsInitialized = true;
         RevealSettlements();
     }
@@ -201,6 +207,11 @@ public class FogOfWarController : MonoBehaviour
 
         revealedTiles[coordinate.x, coordinate.y] = true;
 
+        if (hideUnrevealedTileVisuals)
+        {
+            SetTileVisualsVisible(coordinate, true);
+        }
+
         GameObject fogInstance = fogInstances[coordinate.x, coordinate.y];
         if (fogInstance != null)
         {
@@ -227,6 +238,11 @@ public class FogOfWarController : MonoBehaviour
 
     private void ClearFogInstances()
     {
+        if (hideUnrevealedTileVisuals)
+        {
+            SetAllTileVisualsVisible(true);
+        }
+
         if (fogInstances == null)
         {
             IsInitialized = false;
@@ -255,5 +271,44 @@ public class FogOfWarController : MonoBehaviour
         }
 
         IsInitialized = false;
+    }
+
+    private void SetAllTileVisualsVisible(bool visible)
+    {
+        if (gridMap == null || gridMap.tileMap == null)
+        {
+            return;
+        }
+
+        for (int x = 0; x < gridMap.Width; x++)
+        {
+            for (int y = 0; y < gridMap.Height; y++)
+            {
+                SetTileVisualsVisible(new Vector2Int(x, y), visible);
+            }
+        }
+    }
+
+    private void SetTileVisualsVisible(Vector2Int coordinate, bool visible)
+    {
+        if (gridMap == null || !gridMap.IsInsideGrid(coordinate))
+        {
+            return;
+        }
+
+        GameObject tileInstance = gridMap.GetTileInstanceAt(coordinate.x, coordinate.y);
+        if (tileInstance == null)
+        {
+            return;
+        }
+
+        Renderer[] renderers = tileInstance.GetComponentsInChildren<Renderer>(true);
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            if (renderers[i] != null)
+            {
+                renderers[i].enabled = visible;
+            }
+        }
     }
 }
