@@ -13,7 +13,7 @@ public class Turns : MonoBehaviour
         Win,
         Lose
     }
-    
+
     [Header("Turn Settings")]
     [SerializeField] private int actionsPerTurn = 1;
     [SerializeField] private bool autoStartOnAwake = true;
@@ -21,18 +21,20 @@ public class Turns : MonoBehaviour
 
     [Header("Resources")]
     public int resourceTypesCount = 3;
-    
+
     [Header("Resource Income Per Turn")]
     [SerializeField, Min(0)] private int[] resourcesPerTurn;
-    
+
     [Header("Starting Resources")]
     [SerializeField, Min(0)] private int[] startingResources;
-   
+
     [Header("Input")]
     [SerializeField] private InputActionReference endTurnAction;
+    [SerializeField] private Key skipTurnKey = Key.P;
 
     [Header("UI")]
     [SerializeField] private ResourceTurnsUI resourceTurnsUI;
+    [SerializeField] private ResourceTurnsUIDocument resourceTurnsUIDocument;
     [SerializeField] private TileBuilding tileBuilding;
 
     [Header("Win Lose Con")]
@@ -43,14 +45,16 @@ public class Turns : MonoBehaviour
 
     [Header("Connected Village Reward")]
     [SerializeField, Min(0)] private int turnsPerConnectedVillage = 5;
-    
+    [SerializeField] private bool allowConnectedVillageTurnRewards = false;
+
     private int[] _currentResources;
     private int _lastRewardedConnectedVillageCount;
+    private int _lastEndedTurnFrame = -1;
     public int RemainingTurns { get; private set; }
     public int ActionsRemaining { get; private set; }
-    
 
-    public int[]CurrentResources
+
+    public int[] CurrentResources
     {
         get => _currentResources;
         set
@@ -198,14 +202,48 @@ public class Turns : MonoBehaviour
         }
     }
 
+    private void Update()
+    {
+        if (State != TurnState.PlayerTurn)
+        {
+            return;
+        }
+
+        if (Keyboard.current == null)
+        {
+            return;
+        }
+
+        if (Keyboard.current[skipTurnKey].wasPressedThisFrame)
+        {
+            TryEndTurnFromInput();
+        }
+    }
+
     private void OnEndTurnPerformed(InputAction.CallbackContext context)
     {
         if (State != TurnState.PlayerTurn)
         {
             return;
         }
-        Debug.Log($"Current wood: {CurrentResources[(int)ResourceType.Wood]}, Current stone: {(int)ResourceType.Stone}, Actions remaining: {ActionsRemaining}");
-        EndTurn();
+        Debug.Log($"Current wood: {CurrentResources[(int)ResourceType.Wood]}, Current stone: {CurrentResources[(int)ResourceType.Stone]}, Actions remaining: {ActionsRemaining}");
+        TryEndTurnFromInput();
+    }
+
+    private bool TryEndTurnFromInput()
+    {
+        if (_lastEndedTurnFrame == Time.frameCount)
+        {
+            return false;
+        }
+
+        bool ended = EndTurn();
+        if (ended)
+        {
+            _lastEndedTurnFrame = Time.frameCount;
+        }
+
+        return ended;
     }
 
     public void StartEncounter()
@@ -226,7 +264,7 @@ public class Turns : MonoBehaviour
 
         CurrentResources[(int)ResourceType.Turn] = 1;
         RemainingTurns = startingResources[(int)ResourceType.Turn];
-        for(int resourceIndex = 0; resourceIndex < resourceTypesCount; ++resourceIndex)
+        for (int resourceIndex = 0; resourceIndex < resourceTypesCount; ++resourceIndex)
         {
             CurrentResources[resourceIndex] = Math.Max(0, startingResources[resourceIndex]);
         }
@@ -368,7 +406,7 @@ public class Turns : MonoBehaviour
     private int[] GetVillageBonuses()
     {
         int connectedVillageCount = GetConnectedVillageCount();
-        int[] villageBonuses =  new int[resourceTypesCount];
+        int[] villageBonuses = new int[resourceTypesCount];
         for (int resourceIndex = 0; resourceIndex < resourceTypesCount; ++resourceIndex)
         {
             villageBonuses[resourceIndex] = connectedVillageCount * Mathf.Max(0, resourcePerConnectedVillage[resourceIndex]);
@@ -388,7 +426,7 @@ public class Turns : MonoBehaviour
 
     private void RefreshUI()
     {
-        if (resourceTurnsUI == null)
+        if (resourceTurnsUI == null && resourceTurnsUIDocument == null)
         {
             return;
         }
@@ -397,9 +435,18 @@ public class Turns : MonoBehaviour
         var displayedResourcePerTurn = new int[villageBonuses.Length];
         for (int resourceIndex = 0; resourceIndex < resourceTypesCount; ++resourceIndex)
         {
-            displayedResourcePerTurn[resourceIndex] =  Mathf.Max(0, resourcesPerTurn[resourceIndex]) + villageBonuses[resourceIndex];
+            displayedResourcePerTurn[resourceIndex] = Mathf.Max(0, resourcesPerTurn[resourceIndex]) + villageBonuses[resourceIndex];
         }
-        resourceTurnsUI.UpdateTexts(CurrentResources, displayedResourcePerTurn, RemainingTurns);
+
+        if (resourceTurnsUI != null)
+        {
+            resourceTurnsUI.UpdateTexts(CurrentResources, displayedResourcePerTurn, RemainingTurns);
+        }
+
+        if (resourceTurnsUIDocument != null)
+        {
+            resourceTurnsUIDocument.UpdateTexts(CurrentResources, displayedResourcePerTurn, RemainingTurns);
+        }
     }
 
     private int GetConnectedVillageCount()
@@ -420,6 +467,13 @@ public class Turns : MonoBehaviour
     {
         int connectedVillageCount = GetConnectedVillageCount();
         int newlyConnectedVillages = Mathf.Max(0, connectedVillageCount - _lastRewardedConnectedVillageCount);
+
+        if (!allowConnectedVillageTurnRewards)
+        {
+            _lastRewardedConnectedVillageCount = connectedVillageCount;
+            RefreshUI();
+            return;
+        }
 
         if (newlyConnectedVillages > 0)
         {
