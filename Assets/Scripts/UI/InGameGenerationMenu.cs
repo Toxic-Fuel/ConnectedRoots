@@ -536,9 +536,12 @@ public class InGameGenerationMenu : MonoBehaviour
             starterMinDistance = Mathf.RoundToInt(GUILayout.HorizontalSlider(starterMinDistance, 1f, 8f, sliderStyle, sliderThumbStyle));
 
             int minRadius = Mathf.Max(1, starterMinDistance);
-            starterRadius = Mathf.Max(minRadius, starterRadius);
-            GUILayout.Label($"Starter Radius: {starterRadius}", labelStyle);
-            starterRadius = Mathf.RoundToInt(GUILayout.HorizontalSlider(starterRadius, minRadius, 12f, sliderStyle, sliderThumbStyle));
+            GUILayout.Label($"Starter Radius: {starterRadius} (min {minRadius})", labelStyle);
+            starterRadius = Mathf.RoundToInt(GUILayout.HorizontalSlider(starterRadius, 1f, 12f, sliderStyle, sliderThumbStyle));
+            if (starterRadius < minRadius)
+            {
+                starterRadius = minRadius;
+            }
         }
 
         GUILayout.Space(10f);
