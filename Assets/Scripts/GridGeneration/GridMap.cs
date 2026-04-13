@@ -48,6 +48,18 @@ namespace GridGeneration
         [SerializeField, Min(0)] private int minDistance = 1;
         [SerializeField, Min(0)] private int minQuests = 1;
         [SerializeField, Min(0)] private int maxQuests = 3;
+        [Header("Starter Economy Guarantee")]
+        [SerializeField] private bool guaranteeStarterResourceNodes = true;
+        [SerializeField, Min(1)] private int starterResourceMinDistanceFromCity = 2;
+        [SerializeField, Min(1)] private int starterResourceRadius = 3;
+        [SerializeField] private bool protectStarterResourcePaths = true;
+        [SerializeField] private bool logStarterResourcePlacement = false;
+        [Header("Mine Source Balance")]
+        [SerializeField] private bool limitMineSourceTiles = true;
+        [SerializeField, Range(0f, 1f)] private float maxMineSourcePercent = 0.05f;
+        [SerializeField, Min(0)] private int minMineSourceTiles = 6;
+        [SerializeField] private bool preserveNearestMineSourceToCity = true;
+        [SerializeField] private bool logMineSourceBalancing = false;
         public GridTile[,] tileMap { get; private set; }
         private GameObject[,] gameObjectMap;
         private bool[,] protectedTileMap;
@@ -197,8 +209,10 @@ namespace GridGeneration
 
             var rng = new System.Random(seed);
             var settlementNodes = new List<Vector2Int>();
+            Vector2Int cityCoordinate = new Vector2Int(-1, -1);
 
-            if (GenerateVillageMap(rng, true, settlementNodes, out Vector2Int cityCoordinate))
+            bool cityPlaced = GenerateVillageMap(rng, true, settlementNodes, out cityCoordinate);
+            if (cityPlaced)
             {
                 settlementNodes.Add(cityCoordinate);
                 PlacePlayerAtCity(cityCoordinate);
@@ -222,12 +236,165 @@ namespace GridGeneration
                 Debug.LogError("GridMap: No villages were placed.", this);
             }
 
+            if (cityPlaced)
+            {
+                EnsureStarterResourcesAroundCity(rng, cityCoordinate);
+            }
+
             // Reserve protected paths first so quest placement logic can avoid them.
             ReservePathsForSettlements(rng, settlementNodes);
             GenerateQuests(rng);
             PlaceObstacles(rng, obstacleTiles);
+            BalanceMineSourceTiles(rng, landTiles, cityPlaced ? cityCoordinate : (Vector2Int?)null);
 
             MapGenerated?.Invoke(this);
+        }
+
+        private void BalanceMineSourceTiles(System.Random rng, List<GridTile> landTiles, Vector2Int? cityCoordinate)
+        {
+            if (!limitMineSourceTiles || rng == null || tileMap == null)
+            {
+                return;
+            }
+
+            var mineCoordinates = new List<Vector2Int>();
+            for (int x = 0; x < Width; x++)
+            {
+                for (int y = 0; y < Height; y++)
+                {
+                    if (IsMineSourceTile(tileMap[x, y]))
+                    {
+                        mineCoordinates.Add(new Vector2Int(x, y));
+                    }
+                }
+            }
+
+            if (mineCoordinates.Count == 0)
+            {
+                return;
+            }
+
+            int byPercent = Mathf.RoundToInt(Width * Height * Mathf.Clamp01(maxMineSourcePercent));
+            int maxAllowed = Mathf.Max(minMineSourceTiles, byPercent);
+            if (mineCoordinates.Count <= maxAllowed)
+            {
+                return;
+            }
+
+            bool hasPreservedMine = false;
+            Vector2Int preservedMineCoordinate = new Vector2Int(-1, -1);
+            if (preserveNearestMineSourceToCity
+                && cityCoordinate.HasValue
+                && TryFindNearestMineSourceToCity(cityCoordinate.Value, mineCoordinates, out preservedMineCoordinate))
+            {
+                hasPreservedMine = true;
+                mineCoordinates.Remove(preservedMineCoordinate);
+            }
+
+            ShuffleList(mineCoordinates, rng);
+
+            int effectiveAllowedAfterPreserve = Mathf.Max(0, maxAllowed - (hasPreservedMine ? 1 : 0));
+            int removableCount = mineCoordinates.Count - effectiveAllowedAfterPreserve;
+            if (removableCount <= 0)
+            {
+                return;
+            }
+
+            GridTile defaultLandTile = (landTiles != null && landTiles.Count > 0)
+                ? landTiles[0]
+                : FindFirstTileByType(TileType.Land);
+
+            int removedCount = 0;
+            for (int i = 0; i < mineCoordinates.Count && removedCount < removableCount; i++)
+            {
+                Vector2Int coordinate = mineCoordinates[i];
+                GridTile currentTile = tileMap[coordinate.x, coordinate.y];
+                GridTile replacementTile = ResolveMineSourceReplacement(currentTile, defaultLandTile);
+                if (replacementTile == null || replacementTile == currentTile)
+                {
+                    continue;
+                }
+
+                ReplaceTileAt(coordinate.x, coordinate.y, replacementTile);
+                removedCount++;
+            }
+
+            if (logMineSourceBalancing)
+            {
+                int finalMineCount = CountMineSourceTiles();
+                Debug.Log($"GridMap: Mine source balancing removed {removedCount} tiles. Remaining mine sources: {finalMineCount}.", this);
+            }
+        }
+
+        private bool TryFindNearestMineSourceToCity(Vector2Int cityCoordinate, List<Vector2Int> mineCoordinates, out Vector2Int nearestMine)
+        {
+            nearestMine = new Vector2Int(-1, -1);
+            if (mineCoordinates == null || mineCoordinates.Count == 0)
+            {
+                return false;
+            }
+
+            int bestDistance = int.MaxValue;
+            for (int i = 0; i < mineCoordinates.Count; i++)
+            {
+                int distance = ManhattanDistance(cityCoordinate, mineCoordinates[i]);
+                if (distance < bestDistance)
+                {
+                    bestDistance = distance;
+                    nearestMine = mineCoordinates[i];
+                }
+            }
+
+            return bestDistance != int.MaxValue;
+        }
+
+        private static GridTile ResolveMineSourceReplacement(GridTile currentTile, GridTile defaultLandTile)
+        {
+            if (currentTile == null)
+            {
+                return null;
+            }
+
+            if (IsNamedTile(currentTile, "Valley"))
+            {
+                return defaultLandTile;
+            }
+
+            return null;
+        }
+
+        private int CountMineSourceTiles()
+        {
+            if (tileMap == null)
+            {
+                return 0;
+            }
+
+            int count = 0;
+            for (int x = 0; x < Width; x++)
+            {
+                for (int y = 0; y < Height; y++)
+                {
+                    if (IsMineSourceTile(tileMap[x, y]))
+                    {
+                        count++;
+                    }
+                }
+            }
+
+            return count;
+        }
+
+        private static bool IsMineSourceTile(GridTile tile)
+        {
+            return IsNamedTile(tile, "Valley") || (tile != null && tile.tileType == TileType.Valley);
+        }
+
+        private static bool IsNamedTile(GridTile tile, string expectedName)
+        {
+            return tile != null
+                && !string.IsNullOrWhiteSpace(expectedName)
+                && string.Equals(tile.tileName, expectedName, StringComparison.OrdinalIgnoreCase);
         }
 
         private void GenerateQuests(System.Random rng)
@@ -407,6 +574,155 @@ namespace GridGeneration
 
             Vector3 cityCenter = cityTile.transform.position;
             playerTransform.position = new Vector3(cityCenter.x, cityCenter.y + playerSpawnYOffset, cityCenter.z);
+        }
+
+        private void EnsureStarterResourcesAroundCity(System.Random rng, Vector2Int cityCoordinate)
+        {
+            if (!guaranteeStarterResourceNodes || rng == null || !IsInsideGrid(cityCoordinate))
+            {
+                return;
+            }
+
+            GridTile guaranteedForestTile = FindFirstTileByExactName("Forest") ?? FindFirstTileByType(TileType.Forest);
+            GridTile guaranteedMineTile = FindFirstTileByExactName("Valley")
+                                          ?? FindFirstTileByType(TileType.Valley);
+
+            var reservedCoordinates = new HashSet<Vector2Int>();
+
+            if (guaranteedForestTile != null)
+            {
+                if (TryPlaceStarterTileNearCity(rng, cityCoordinate, guaranteedForestTile, reservedCoordinates, out Vector2Int forestCoordinate))
+                {
+                    if (protectStarterResourcePaths)
+                    {
+                        ProtectWalk(cityCoordinate, forestCoordinate);
+                    }
+
+                    reservedCoordinates.Add(forestCoordinate);
+                    if (logStarterResourcePlacement)
+                    {
+                        Debug.Log($"GridMap: Guaranteed forest tile at ({forestCoordinate.x}, {forestCoordinate.y}).", this);
+                    }
+                }
+                else
+                {
+                    Debug.LogWarning("GridMap: Could not place guaranteed forest tile near city.", this);
+                }
+            }
+
+            if (guaranteedMineTile != null)
+            {
+                if (TryPlaceStarterTileNearCity(rng, cityCoordinate, guaranteedMineTile, reservedCoordinates, out Vector2Int mineCoordinate))
+                {
+                    if (protectStarterResourcePaths)
+                    {
+                        ProtectWalk(cityCoordinate, mineCoordinate);
+                    }
+
+                    reservedCoordinates.Add(mineCoordinate);
+                    if (logStarterResourcePlacement)
+                    {
+                        Debug.Log($"GridMap: Guaranteed mine tile '{guaranteedMineTile.tileName}' at ({mineCoordinate.x}, {mineCoordinate.y}).", this);
+                    }
+                }
+                else
+                {
+                    Debug.LogWarning("GridMap: Could not place guaranteed mine tile near city.", this);
+                }
+            }
+        }
+
+        private bool TryPlaceStarterTileNearCity(System.Random rng, Vector2Int cityCoordinate, GridTile targetTile, HashSet<Vector2Int> blockedCoordinates, out Vector2Int placedCoordinate)
+        {
+            placedCoordinate = new Vector2Int(-1, -1);
+            if (targetTile == null)
+            {
+                return false;
+            }
+
+            int radius = Mathf.Max(1, starterResourceRadius);
+            int minDistance = Mathf.Clamp(starterResourceMinDistanceFromCity, 1, radius);
+            var allCandidates = new List<Vector2Int>();
+
+            for (int distance = minDistance; distance <= radius; distance++)
+            {
+                for (int dx = -distance; dx <= distance; dx++)
+                {
+                    int remaining = distance - Mathf.Abs(dx);
+                    int[] ys = { remaining, -remaining };
+
+                    for (int i = 0; i < ys.Length; i++)
+                    {
+                        int dy = ys[i];
+                        Vector2Int candidate = new Vector2Int(cityCoordinate.x + dx, cityCoordinate.y + dy);
+                        if (!IsStarterPlacementCandidate(candidate, blockedCoordinates))
+                        {
+                            continue;
+                        }
+
+                        if (!allCandidates.Contains(candidate))
+                        {
+                            allCandidates.Add(candidate);
+                        }
+                    }
+                }
+            }
+
+            if (allCandidates.Count == 0)
+            {
+                return false;
+            }
+
+            Vector2Int chosenCoordinate = allCandidates[rng.Next(0, allCandidates.Count)];
+            ReplaceTileAt(chosenCoordinate.x, chosenCoordinate.y, targetTile);
+            ProtectCoordinate(chosenCoordinate.x, chosenCoordinate.y);
+            placedCoordinate = chosenCoordinate;
+            return true;
+        }
+
+        private bool IsStarterPlacementCandidate(Vector2Int coordinate, HashSet<Vector2Int> blockedCoordinates)
+        {
+            if (!IsInsideGrid(coordinate))
+            {
+                return false;
+            }
+
+            if (blockedCoordinates != null && blockedCoordinates.Contains(coordinate))
+            {
+                return false;
+            }
+
+            GridTile tile = tileMap[coordinate.x, coordinate.y];
+            if (tile == null)
+            {
+                return false;
+            }
+
+            return tile.tileType != TileType.City && tile.tileType != TileType.Village;
+        }
+
+        private GridTile FindFirstTileByExactName(string tileName)
+        {
+            if (tiles == null || string.IsNullOrWhiteSpace(tileName))
+            {
+                return null;
+            }
+
+            for (int i = 0; i < tiles.Length; i++)
+            {
+                GridTile tile = tiles[i];
+                if (tile == null)
+                {
+                    continue;
+                }
+
+                if (string.Equals(tile.tileName, tileName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return tile;
+                }
+            }
+
+            return null;
         }
 
         private void ReservePathsForSettlements(System.Random rng, List<Vector2Int> settlementNodes)
@@ -980,6 +1296,16 @@ namespace GridGeneration
                 hash = hash * 31 + minDistance;
                 hash = hash * 31 + minQuests;
                 hash = hash * 31 + maxQuests;
+                hash = hash * 31 + guaranteeStarterResourceNodes.GetHashCode();
+                hash = hash * 31 + starterResourceMinDistanceFromCity;
+                hash = hash * 31 + starterResourceRadius;
+                hash = hash * 31 + protectStarterResourcePaths.GetHashCode();
+                hash = hash * 31 + logStarterResourcePlacement.GetHashCode();
+                hash = hash * 31 + limitMineSourceTiles.GetHashCode();
+                hash = hash * 31 + maxMineSourcePercent.GetHashCode();
+                hash = hash * 31 + minMineSourceTiles;
+                hash = hash * 31 + preserveNearestMineSourceToCity.GetHashCode();
+                hash = hash * 31 + logMineSourceBalancing.GetHashCode();
                 hash = hash * 31 + baseTileId;
                 hash = hash * 31 + basePrefabId;
 
