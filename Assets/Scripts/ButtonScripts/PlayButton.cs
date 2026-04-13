@@ -7,6 +7,11 @@ public class PlayButton : MonoBehaviour
 
     public void Play()
     {
+        if (InGameGenerationMenu.IsAnyMenuOpen)
+        {
+            return;
+        }
+
         SceneManager.LoadScene(sceneName);
     }
 }

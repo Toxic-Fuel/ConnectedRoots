@@ -21,6 +21,7 @@ public class InGameGenerationMenu : MonoBehaviour
     [SerializeField] private bool showOnStart;
     [SerializeField] private bool persistAcrossScenes = true;
     [SerializeField] private bool blockGameplayInputWhileOpen = true;
+    [SerializeField] private bool blockSceneUiInputWhileMenuIsOpen = true;
     [SerializeField] private bool mainMenuOnlyUntilGridMapFound = true;
     [SerializeField] private bool showFloatingToggleButton = true;
     [SerializeField] private Vector2 floatingButtonSize = new Vector2(140f, 58f);
@@ -44,6 +45,8 @@ public class InGameGenerationMenu : MonoBehaviour
     private bool isOpen;
     private bool pendingApplyWithoutGridMap;
     private bool centerWindowOnNextDraw = true;
+    private EventSystem blockedEventSystem;
+    private bool blockedEventSystemPreviousEnabled;
 
     private static InGameGenerationMenu instance;
 
@@ -117,6 +120,7 @@ public class InGameGenerationMenu : MonoBehaviour
         }
 
         SetMenuOpenState(false);
+        RestoreBlockedEventSystem();
 
         if (instance == this)
         {
@@ -217,6 +221,50 @@ public class InGameGenerationMenu : MonoBehaviour
     {
         isOpen = open;
         IsAnyMenuOpen = blockGameplayInputWhileOpen && isOpen;
+        UpdateEventSystemBlockState();
+    }
+
+    private void UpdateEventSystemBlockState()
+    {
+        if (!blockSceneUiInputWhileMenuIsOpen)
+        {
+            RestoreBlockedEventSystem();
+            return;
+        }
+
+        bool shouldBlock = IsAnyMenuOpen && CanDisplayMenu();
+        if (!shouldBlock)
+        {
+            RestoreBlockedEventSystem();
+            return;
+        }
+
+        EventSystem currentEventSystem = EventSystem.current;
+        if (currentEventSystem == null)
+        {
+            return;
+        }
+
+        if (blockedEventSystem != currentEventSystem)
+        {
+            RestoreBlockedEventSystem();
+            blockedEventSystem = currentEventSystem;
+            blockedEventSystemPreviousEnabled = currentEventSystem.enabled;
+        }
+
+        if (currentEventSystem.enabled)
+        {
+            currentEventSystem.enabled = false;
+        }
+    }
+
+    private void RestoreBlockedEventSystem()
+    {
+        if (blockedEventSystem != null)
+        {
+            blockedEventSystem.enabled = blockedEventSystemPreviousEnabled;
+            blockedEventSystem = null;
+        }
     }
 
     private void TryResolveGridMap()
