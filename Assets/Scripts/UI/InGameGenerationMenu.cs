@@ -6,6 +6,20 @@ using UnityEngine.InputSystem;
 
 public class InGameGenerationMenu : MonoBehaviour
 {
+    private struct PendingGridSettings
+    {
+        public float obstaclePercent;
+        public bool limitMineSourceTiles;
+        public float maxMineSourcePercent;
+        public int minMineSourceTiles;
+        public bool guaranteeStarterResources;
+        public int starterMinDistance;
+        public int starterRadius;
+        public bool preserveNearestMine;
+        public string seedText;
+        public bool regenerateOnApply;
+    }
+
     private enum DifficultyPreset
     {
         Easy,
@@ -91,6 +105,8 @@ public class InGameGenerationMenu : MonoBehaviour
     private Texture2D toggleBoxOnHoverTexture;
 
     private static InGameGenerationMenu instance;
+    private static bool hasPendingGridSettings;
+    private static PendingGridSettings pendingGridSettings;
 
     public static bool IsAnyMenuOpen { get; private set; }
 
@@ -142,6 +158,7 @@ public class InGameGenerationMenu : MonoBehaviour
 
         if (gridMap != null)
         {
+            TryApplyPendingSettingsToGridMap();
             PullFromGridMap();
         }
     }
@@ -339,6 +356,11 @@ public class InGameGenerationMenu : MonoBehaviour
         if (gridMap == null)
         {
             return;
+        }
+
+        if (TryApplyPendingSettingsToGridMap())
+        {
+            pendingApplyWithoutGridMap = false;
         }
 
         if (pendingApplyWithoutGridMap && autoApplyPendingChangesWhenGridMapAppears)
@@ -569,6 +591,7 @@ public class InGameGenerationMenu : MonoBehaviour
             }
             else
             {
+                CacheCurrentSettingsForPendingApply(regenerateWhenApplyingPendingChanges);
                 pendingApplyWithoutGridMap = true;
             }
         }
@@ -584,6 +607,7 @@ public class InGameGenerationMenu : MonoBehaviour
             }
             else
             {
+                CacheCurrentSettingsForPendingApply(true);
                 pendingApplyWithoutGridMap = true;
             }
         }
@@ -879,6 +903,63 @@ public class InGameGenerationMenu : MonoBehaviour
         starterRadius = gridMap.StarterResourceRadius;
         preserveNearestMine = gridMap.PreserveNearestMineSourceToCity;
         seedText = gridMap.seed.ToString();
+    }
+
+    public static void QueueCurrentSettingsForNextGridMap()
+    {
+        if (instance == null)
+        {
+            return;
+        }
+
+        instance.CacheCurrentSettingsForPendingApply(instance.regenerateWhenApplyingPendingChanges);
+        instance.pendingApplyWithoutGridMap = true;
+    }
+
+    private void CacheCurrentSettingsForPendingApply(bool regenerateOnApply)
+    {
+        pendingGridSettings = new PendingGridSettings
+        {
+            obstaclePercent = obstaclePercent,
+            limitMineSourceTiles = limitMineSourceTiles,
+            maxMineSourcePercent = maxMineSourcePercent,
+            minMineSourceTiles = minMineSourceTiles,
+            guaranteeStarterResources = guaranteeStarterResources,
+            starterMinDistance = starterMinDistance,
+            starterRadius = starterRadius,
+            preserveNearestMine = preserveNearestMine,
+            seedText = seedText,
+            regenerateOnApply = regenerateOnApply
+        };
+
+        hasPendingGridSettings = true;
+    }
+
+    private bool TryApplyPendingSettingsToGridMap()
+    {
+        if (!hasPendingGridSettings || gridMap == null || !autoApplyPendingChangesWhenGridMapAppears)
+        {
+            return false;
+        }
+
+        obstaclePercent = pendingGridSettings.obstaclePercent;
+        limitMineSourceTiles = pendingGridSettings.limitMineSourceTiles;
+        maxMineSourcePercent = pendingGridSettings.maxMineSourcePercent;
+        minMineSourceTiles = pendingGridSettings.minMineSourceTiles;
+        guaranteeStarterResources = pendingGridSettings.guaranteeStarterResources;
+        starterMinDistance = pendingGridSettings.starterMinDistance;
+        starterRadius = pendingGridSettings.starterRadius;
+        preserveNearestMine = pendingGridSettings.preserveNearestMine;
+        seedText = pendingGridSettings.seedText;
+
+        PushToGridMap();
+        if (pendingGridSettings.regenerateOnApply)
+        {
+            gridMap.GenerateLandMap();
+        }
+
+        hasPendingGridSettings = false;
+        return true;
     }
 
     private void PushToGridMap()

@@ -12,6 +12,8 @@ public class PlayButton : MonoBehaviour
             return;
         }
 
+        InGameGenerationMenu.QueueCurrentSettingsForNextGridMap();
+
         SceneManager.LoadScene(sceneName);
     }
 }
