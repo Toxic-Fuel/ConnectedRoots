@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
+using ScoreSystem;
 
 namespace UI
 {
@@ -18,6 +19,12 @@ namespace UI
 
     [Header("Reopen Button")]
     [SerializeField] private GameObject reopenEndScreenButton;
+
+    [Header("Live Summary")]
+    [SerializeField] private LevelScore levelScore;
+    [SerializeField, Min(0)] private int fallbackLiveScore;
+    [SerializeField, Range(0, 1000)] private int fallbackLiveSpeedRatingPercent = 100;
+    [SerializeField, Range(0, 100)] private int fallbackLiveDifficultyPercent = 100;
 
     [Header("Disable While End Screen Is Open")]
     [SerializeField] private List<Component> componentsToDisableWhenScreenEnabled = new List<Component>();
@@ -66,7 +73,7 @@ namespace UI
 
         if (reopenEndScreenButton != null)
         {
-            reopenEndScreenButton.SetActive(false);
+            reopenEndScreenButton.SetActive(true);
         }
     }
 
@@ -121,11 +128,6 @@ namespace UI
         _lastSpeedRatingPercent = Mathf.Max(0, speedRatingPercent);
         _lastDifficultyPercent = Mathf.Max(0, difficultyPercent);
         _hasFinalSummary = true;
-
-        if (reopenEndScreenButton != null)
-        {
-            reopenEndScreenButton.SetActive(true);
-        }
 
         if (_hideCoroutine != null)
         {
@@ -360,12 +362,36 @@ namespace UI
 
     public void OnReopenEndScreenClicked()
     {
-        if (!_hasFinalSummary)
+        if (_hasFinalSummary)
         {
+            Show(_lastResultText, _lastScore, _lastHighscore, _lastSpeedRatingPercent, _lastDifficultyPercent);
             return;
         }
 
-        Show(_lastResultText, _lastScore, _lastHighscore, _lastSpeedRatingPercent, _lastDifficultyPercent);
+        ShowCurrentSummary();
+    }
+
+    public void ShowCurrentSummary()
+    {
+        if (levelScore == null)
+        {
+            levelScore = FindAnyObjectByType<LevelScore>();
+        }
+
+        int score = fallbackLiveScore;
+        int speedRatingPercent = fallbackLiveSpeedRatingPercent;
+        int difficultyPercent = fallbackLiveDifficultyPercent;
+
+        if (levelScore != null)
+        {
+            score = levelScore.GetCurrentScore();
+            speedRatingPercent = levelScore.GetCurrentSpeedRatingPercent();
+            difficultyPercent = levelScore.GetCurrentDifficultyRatingPercent();
+        }
+
+        int highscore = HighscoreSystem.GetBestScore();
+        Show("Current", score, highscore, speedRatingPercent, difficultyPercent);
+        _hasFinalSummary = false;
     }
 
     private void OnPlayAgainClicked()

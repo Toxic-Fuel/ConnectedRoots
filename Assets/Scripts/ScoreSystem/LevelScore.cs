@@ -32,6 +32,24 @@ namespace ScoreSystem
         public float TurnMultiplier => turnMultiplier;
         public float DifficultyMultiplier => difficultyMultiplier;
 
+        public int GetCurrentScore()
+        {
+            return Mathf.Max(0, scoreValue);
+        }
+
+        public int GetCurrentSpeedRatingPercent()
+        {
+            int usedTurns = Mathf.Max(1, _turnsUsed);
+            int targetTurns = Mathf.Max(1, perfectTurns);
+            float liveTurnMultiplier = (float)targetTurns / usedTurns;
+            return Mathf.Max(0, Mathf.RoundToInt(liveTurnMultiplier * 100f));
+        }
+
+        public int GetCurrentDifficultyRatingPercent()
+        {
+            return Mathf.Max(0, Mathf.RoundToInt(difficultyMultiplier * 100f));
+        }
+
         public void AddToScore(float value)
         {
             AddToScore(value, ScoreType.Default);
