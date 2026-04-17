@@ -1,5 +1,7 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.EventSystems;
 
 public class CameraHoldMove : MonoBehaviour
 {
@@ -20,6 +22,8 @@ public class CameraHoldMove : MonoBehaviour
     private Vector2 smoothedDelta;
     private Vector2 deltaVelocity;
     private Vector2 dragPressScreenPosition;
+    private bool suppressDragUntilRelease;
+    private readonly List<RaycastResult> uiRaycastResults = new List<RaycastResult>(8);
     public float settingsDragSensitivity = 1.0f;
     [SerializeField] private SelectTile selectTile;
     private bool inputSuppressed;
@@ -100,11 +104,30 @@ public class CameraHoldMove : MonoBehaviour
             return;
         }
 
+        if (suppressDragUntilRelease)
+        {
+            if (holdAction.action.WasReleasedThisFrame())
+            {
+                suppressDragUntilRelease = false;
+                ResetDragState();
+            }
+
+            return;
+        }
+
         if (holdAction.action.WasPressedThisFrame())
         {
+            Vector2 pressPosition = pointerPositionAction.action.ReadValue<Vector2>();
+            if (IsPointerOverUi(pressPosition))
+            {
+                suppressDragUntilRelease = true;
+                ResetDragState();
+                return;
+            }
+
             pendingDragStart = true;
             isDragging = false;
-            dragPressScreenPosition = pointerPositionAction.action.ReadValue<Vector2>();
+            dragPressScreenPosition = pressPosition;
         }
 
         if (holdAction.action.WasReleasedThisFrame())
@@ -164,6 +187,28 @@ public class CameraHoldMove : MonoBehaviour
         pendingDragStart = false;
         smoothedDelta = Vector2.zero;
         deltaVelocity = Vector2.zero;
+    }
+
+    private bool IsPointerOverUi(Vector2 screenPosition)
+    {
+        if (EventSystem.current == null)
+        {
+            return false;
+        }
+
+        if (EventSystem.current.IsPointerOverGameObject())
+        {
+            return true;
+        }
+
+        uiRaycastResults.Clear();
+        var eventData = new PointerEventData(EventSystem.current)
+        {
+            position = screenPosition
+        };
+
+        EventSystem.current.RaycastAll(eventData, uiRaycastResults);
+        return uiRaycastResults.Count > 0;
     }
 
     public void SetInputSuppressed(bool suppressed)

@@ -1,5 +1,7 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.EventSystems;
 
 public class CameraLeftClick : MonoBehaviour
 {
@@ -17,6 +19,8 @@ public class CameraLeftClick : MonoBehaviour
     private Vector2 smoothedDelta;
     private Vector2 deltaVelocity;
     private Vector2 dragPressScreenPosition;
+    private bool suppressDragUntilRelease;
+    private readonly List<RaycastResult> uiRaycastResults = new List<RaycastResult>(8);
     public float settingsDragSensitivity = 1.0f;
     [SerializeField] private SelectTile selectTile;
 
@@ -45,6 +49,17 @@ public class CameraLeftClick : MonoBehaviour
         if (mouse == null)
             return;
 
+        if (suppressDragUntilRelease)
+        {
+            if (mouse.leftButton.wasReleasedThisFrame)
+            {
+                suppressDragUntilRelease = false;
+                ResetDragState();
+            }
+
+            return;
+        }
+
         if (selectTile != null && selectTile.HasSelection)
         {
             ResetDragState();
@@ -53,9 +68,17 @@ public class CameraLeftClick : MonoBehaviour
 
         if (mouse.leftButton.wasPressedThisFrame)
         {
+            Vector2 pressPosition = mouse.position.ReadValue();
+            if (IsPointerOverUi(pressPosition))
+            {
+                suppressDragUntilRelease = true;
+                ResetDragState();
+                return;
+            }
+
             pendingDragStart = true;
             isDragging = false;
-            dragPressScreenPosition = mouse.position.ReadValue();
+            dragPressScreenPosition = pressPosition;
         }
 
         if (mouse.leftButton.wasReleasedThisFrame)
@@ -115,5 +138,27 @@ public class CameraLeftClick : MonoBehaviour
         pendingDragStart = false;
         smoothedDelta = Vector2.zero;
         deltaVelocity = Vector2.zero;
+    }
+
+    private bool IsPointerOverUi(Vector2 screenPosition)
+    {
+        if (EventSystem.current == null)
+        {
+            return false;
+        }
+
+        if (EventSystem.current.IsPointerOverGameObject())
+        {
+            return true;
+        }
+
+        uiRaycastResults.Clear();
+        var eventData = new PointerEventData(EventSystem.current)
+        {
+            position = screenPosition
+        };
+
+        EventSystem.current.RaycastAll(eventData, uiRaycastResults);
+        return uiRaycastResults.Count > 0;
     }
 }
